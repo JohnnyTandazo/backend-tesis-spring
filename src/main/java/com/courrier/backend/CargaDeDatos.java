@@ -3,7 +3,6 @@ package com.courrier.backend;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
-import java.time.LocalDateTime;
 
 @Component
 public class CargaDeDatos implements CommandLineRunner {

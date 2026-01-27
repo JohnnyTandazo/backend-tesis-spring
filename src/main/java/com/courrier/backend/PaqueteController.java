@@ -6,9 +6,9 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+@CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/paquetes")
-@CrossOrigin(origins = "https://v0-currier-tics-layout.vercel.app")
 public class PaqueteController {
 
     @Autowired
@@ -20,15 +20,20 @@ public class PaqueteController {
     // 1. Ver TODOS los paquetes (Para el Admin u Operador)
     @GetMapping
     public List<Paquete> listarPaquetes() {
+        System.out.println("📦 [GET /api/paquetes] Listando todos los paquetes...");
         return paqueteRepo.findAll();
     }
 
     // 2. Registrar un Paquete nuevo (Pre-Alerta)
     @PostMapping
     public Paquete crearPaquete(@RequestBody Map<String, Object> payload) {
+        System.out.println("📝 [POST /api/paquetes] ✅ PETICIÓN RECIBIDA - Creando nuevo paquete...");
+        System.out.println("   Datos recibidos: " + payload);
+        
         Paquete p = new Paquete();
         
         p.setTrackingNumber((String) payload.get("trackingNumber"));
+        System.out.println("   📦 Tracking: " + p.getTrackingNumber());
         
         // 1. DESCRIPCIÓN: Si el usuario escribió una descripción específica, úsala.
         // Si no, usa el formato "Compra en [Tienda]" como respaldo.
@@ -60,40 +65,67 @@ public class PaqueteController {
         Usuario u = usuarioRepo.findById(usuarioId).orElseThrow();
         p.setUsuario(u);
         
-        return paqueteRepo.save(p);
+        Paquete paqueteGuardado = paqueteRepo.save(p);
+        System.out.println("✅ Paquete guardado exitosamente: ID=" + paqueteGuardado.getId() + ", Tracking=" + paqueteGuardado.getTrackingNumber());
+        
+        return paqueteGuardado;
     }
     
     // 3. Buscar por Tracking (Para la barra de búsqueda del Home)
     @GetMapping("/rastreo/{tracking}")
     public Paquete buscarPorTracking(@PathVariable String tracking) {
+        System.out.println("🔍 [GET /api/paquetes/rastreo/" + tracking + "] Buscando paquete por tracking...");
         return paqueteRepo.findByTrackingNumber(tracking);
+    }
+
+    // 3b. Buscar por código/tracking (Endpoint alternativo que espera el Frontend)
+    @GetMapping("/track/{codigo}")
+    public Paquete buscarPorCodigo(@PathVariable String codigo) {
+        System.out.println("🔍 [GET /api/paquetes/track/" + codigo + "] ✅ PETICIÓN RECIBIDA - Buscando paquete por código: " + codigo);
+        Paquete paquete = paqueteRepo.findByTrackingNumber(codigo);
+        if (paquete != null) {
+            System.out.println("✅ Paquete encontrado: " + paquete.getTrackingNumber());
+        } else {
+            System.out.println("❌ Paquete NO encontrado para el código: " + codigo);
+        }
+        return paquete;
     }
 
     // 4. Actualizar detalles del paquete (Para el Operador)
     @PutMapping("/{id}/detalles")
     public Paquete actualizarDetallesPaquete(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        System.out.println("✏️ [PUT /api/paquetes/" + id + "/detalles] ✅ PETICIÓN RECIBIDA - Actualizando paquete...");
+        System.out.println("   Datos a actualizar: " + payload);
+        
         Paquete paquete = paqueteRepo.findById(id).orElseThrow();
 
         // 1. Actualizar Estado (si viene)
         if (payload.get("estado") != null) {
             paquete.setEstado((String) payload.get("estado"));
+            System.out.println("   Estado actualizado a: " + paquete.getEstado());
         }
 
         // 2. Actualizar Peso (Vital para el operador)
         if (payload.get("pesoLibras") != null) {
             paquete.setPesoLibras(Double.valueOf(payload.get("pesoLibras").toString()));
+            System.out.println("   Peso actualizado a: " + paquete.getPesoLibras() + " libras");
         }
 
         // 3. Actualizar Precio/Valor (Si el operador lo corrige)
         if (payload.get("precio") != null) {
             paquete.setPrecio(Double.valueOf(payload.get("precio").toString()));
+            System.out.println("   Precio actualizado a: " + paquete.getPrecio());
         }
 
         // 4. Actualizar Categoría (A, B, C, etc.)
         if (payload.get("categoria") != null) {
             paquete.setCategoria((String) payload.get("categoria"));
+            System.out.println("   Categoría actualizada a: " + paquete.getCategoria());
         }
 
-        return paqueteRepo.save(paquete);
+        Paquete paqueteActualizado = paqueteRepo.save(paquete);
+        System.out.println("✅ Paquete actualizado exitosamente: ID=" + id);
+        
+        return paqueteActualizado;
     }
 }
