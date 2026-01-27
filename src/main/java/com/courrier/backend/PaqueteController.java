@@ -8,7 +8,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/paquetes")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "https://v0-currier-tics-layout.vercel.app")
 public class PaqueteController {
 
     @Autowired
