@@ -22,13 +22,21 @@ public class Paquete {
 
     private Double precio;     // Vital para aduanas ($400 limit)
 
-    private String estado;     // 'EN_MIAMI', 'EN_TRANSITO', 'ENTREGADO'
+    public enum TipoEnvio {
+        NACIONAL,
+        INTERNACIONAL
+    }
+
+    @Enumerated(EnumType.STRING)
+    private TipoEnvio tipoEnvio;
+
+    private String estado;     // 'EN_MIAMI', 'EN_TRANSITO', 'ENTREGADO', etc.
 
     private LocalDateTime fechaCreacion = LocalDateTime.now();
 
     private String categoria; // A, B, C, etc.
 
-    // RELACIÓN: Muchos paquetes pueden ser de un solo Usuario
+    // RELACIN: Muchos paquetes pueden ser de un solo Usuario
     @ManyToOne
     @JoinColumn(name = "usuario_id")
     private Usuario usuario;

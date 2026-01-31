@@ -19,9 +19,14 @@ public class PaqueteController {
 
     // 1. Ver TODOS los paquetes (Para el Admin u Operador)
     @GetMapping
-    public List<Paquete> listarPaquetes() {
-        System.out.println("📦 [GET /api/paquetes] Listando todos los paquetes...");
-        return paqueteRepo.findAll();
+    public List<Paquete> listarPaquetes(@RequestParam(value = "usuarioId", required = false) Long usuarioId) {
+        System.out.println("📦 [GET /api/paquetes] Listando paquetes...");
+        if (usuarioId != null) {
+            System.out.println("   🔎 Filtrando por usuarioId: " + usuarioId);
+            return paqueteRepo.findByUsuarioId(usuarioId);
+        } else {
+            return paqueteRepo.findAll();
+        }
     }
 
     // 2. Registrar un Paquete nuevo (Pre-Alerta)
