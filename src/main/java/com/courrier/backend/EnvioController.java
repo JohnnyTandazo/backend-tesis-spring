@@ -15,7 +15,58 @@ public class EnvioController {
     @Autowired
     private EnvioService envioService;
 
-    // 1. GET: Obtener envíos (con filtro opcional por usuarioId)
+    // ORDEN IMPORTANTE DE RUTAS (específicas antes que genéricas):
+    // 1. /detalle/{id}
+    // 2. /usuario/{usuarioId}
+    // 3. /tracking/{numeroTracking}
+    // 4. (GET genérico) - con @RequestParam opcional
+    // 5. /{id} - más genérico, va al final
+
+    // GET: Obtener un envío por su ID (/detalle/{id})
+    @GetMapping("/detalle/{id}")
+    public ResponseEntity<Envio> obtenerEnvioPorId(@PathVariable Long id) {
+        System.out.println("🔎 [GET /api/envios/detalle/" + id + "] PETICIÓN RECIBIDA");
+        Optional<Envio> envio = envioService.obtenerPorId(id);
+        
+        if (envio.isPresent()) {
+            System.out.println("✅ Envío encontrado: ID=" + id + ", Tracking=" + envio.get().getNumeroTracking());
+            return ResponseEntity.ok(envio.get());
+        } else {
+            System.out.println("❌ Envío NO encontrado para ID: " + id);
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // GET: Obtener envíos por usuario (/usuario/{usuarioId})
+    @GetMapping("/usuario/{usuarioId}")
+    public ResponseEntity<List<Envio>> obtenerPorUsuario(@PathVariable Long usuarioId) {
+        System.out.println("👤 [GET /api/envios/usuario/" + usuarioId + "] PETICIÓN RECIBIDA");
+        try {
+            List<Envio> envios = envioService.obtenerPorUsuario(usuarioId);
+            System.out.println("✅ Se encontraron " + envios.size() + " envíos del usuario: " + usuarioId);
+            return ResponseEntity.ok(envios);
+        } catch (Exception e) {
+            System.out.println("⚠️ Error: " + e.getMessage());
+            return ResponseEntity.ok(List.of());
+        }
+    }
+
+    // GET: Obtener envío por número de tracking (/tracking/{numeroTracking})
+    @GetMapping("/tracking/{numeroTracking}")
+    public ResponseEntity<Envio> obtenerPorTracking(@PathVariable String numeroTracking) {
+        System.out.println("📍 [GET /api/envios/tracking/" + numeroTracking + "] PETICIÓN RECIBIDA");
+        Envio envio = envioService.obtenerPorTracking(numeroTracking);
+        
+        if (envio != null) {
+            System.out.println("✅ Envío encontrado por tracking: " + numeroTracking);
+            return ResponseEntity.ok(envio);
+        } else {
+            System.out.println("❌ Envío NO encontrado para tracking: " + numeroTracking);
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // GET: Obtener envíos con filtro opcional por usuarioId (raíz, con @RequestParam)
     @GetMapping
     public ResponseEntity<List<Envio>> obtenerTodos(@RequestParam(required = false) Long usuarioId) {
         System.out.println("📦 [GET /api/envios] PETICIÓN RECIBIDA - usuarioId: " + usuarioId);
@@ -35,47 +86,10 @@ public class EnvioController {
         }
     }
 
-    // 2. GET: Obtener un envío por su ID (ENDPOINT SOLICITADO)
-    @GetMapping("/detalle/{id}")
-    public ResponseEntity<Envio> obtenerEnvioPorId(@PathVariable Long id) {
-        System.out.println("🔎 [GET /api/envios/detalle/" + id + "] ✅ PETICIÓN RECIBIDA - Buscando envío por ID: " + id);
-        Optional<Envio> envio = envioService.obtenerPorId(id);
-        
-        if (envio.isPresent()) {
-            System.out.println("✅ Envío encontrado: ID=" + id + ", Tracking=" + envio.get().getNumeroTracking());
-            return ResponseEntity.ok(envio.get());
-        } else {
-            System.out.println("❌ Envío NO encontrado para ID: " + id);
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    // 3. GET: Obtener envíos por usuario
-    @GetMapping("/usuario/{usuarioId}")
-    public List<Envio> obtenerPorUsuario(@PathVariable Long usuarioId) {
-        System.out.println("👤 [GET /api/envios/usuario/" + usuarioId + "] Obteniendo envíos del usuario: " + usuarioId);
-        return envioService.obtenerPorUsuario(usuarioId);
-    }
-
-    // 4. GET: Obtener envío por número de tracking
-    @GetMapping("/tracking/{numeroTracking}")
-    public ResponseEntity<Envio> obtenerPorTracking(@PathVariable String numeroTracking) {
-        System.out.println("📍 [GET /api/envios/tracking/" + numeroTracking + "] Buscando envío por tracking: " + numeroTracking);
-        Envio envio = envioService.obtenerPorTracking(numeroTracking);
-        
-        if (envio != null) {
-            System.out.println("✅ Envío encontrado por tracking: " + numeroTracking);
-            return ResponseEntity.ok(envio);
-        } else {
-            System.out.println("❌ Envío NO encontrado para tracking: " + numeroTracking);
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    // 4b. GET: Obtener envío por ID (Ruta directa - Compatibilidad con caché del frontend)
+    // GET: Obtener envío por ID directo (/{id}) - DEBE IR AL FINAL
     @GetMapping("/{id}")
     public ResponseEntity<Envio> obtenerEnvioPorIdDirecto(@PathVariable Long id) {
-        System.out.println("🔎 [GET /api/envios/" + id + "] (Ruta directa - compatibilidad) Buscando envío por ID: " + id);
+        System.out.println("🔎 [GET /api/envios/" + id + "] PETICIÓN RECIBIDA");
         Optional<Envio> envio = envioService.obtenerPorId(id);
         
         if (envio.isPresent()) {

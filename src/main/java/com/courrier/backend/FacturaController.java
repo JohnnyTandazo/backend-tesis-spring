@@ -41,6 +41,7 @@ public class FacturaController {
      * GET /api/facturas/usuario/{usuarioId}
      * Obtener todas las facturas de un usuario
      * Devuelve incluido el envioId en el JSON
+     * IMPORTANTE: Este debe ir ANTES de /{id} para evitar conflictos de ruta
      */
     @GetMapping("/usuario/{usuarioId}")
     public ResponseEntity<List<Factura>> obtenerPorUsuario(@PathVariable Long usuarioId) {
@@ -63,6 +64,7 @@ public class FacturaController {
     /**
      * GET /api/facturas/{id}
      * Obtener una factura por ID
+     * IMPORTANTE: Este debe ir DESPUÉS de /usuario/{usuarioId}
      */
     @GetMapping("/{id}")
     public ResponseEntity<Factura> obtenerPorId(@PathVariable Long id) {
