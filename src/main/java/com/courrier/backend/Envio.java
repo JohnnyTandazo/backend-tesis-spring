@@ -2,6 +2,7 @@ package com.courrier.backend;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDateTime;
 
 @Entity
@@ -41,6 +42,7 @@ public class Envio {
     // RELACIÓN: Muchos envíos pertenecen a un usuario
     @ManyToOne
     @JoinColumn(name = "usuario_id")
+    @JsonIgnore  // NO se serializa para evitar ciclos
     private Usuario usuario;
 
     // ========================================
