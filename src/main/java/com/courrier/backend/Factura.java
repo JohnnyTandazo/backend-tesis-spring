@@ -31,6 +31,10 @@ public class Factura {
 
     private String numeroFactura;  // Ej: FAC-2026-001
 
+    // RELACIÓN: Vinculación con Envío que genera la factura
+    @Column(name = "envio_id")
+    private Long envioId;  // ID del envío que genera esta factura
+
     // RELACIÓN: Muchas facturas pertenecen a un usuario
     @ManyToOne
     @JoinColumn(name = "usuario_id", nullable = false)

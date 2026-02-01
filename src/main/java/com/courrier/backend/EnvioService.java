@@ -14,6 +14,9 @@ public class EnvioService {
     
     @Autowired
     private UsuarioRepository usuarioRepository;
+    
+    @Autowired
+    private FacturaRepository facturaRepository;
 
     // Obtener un envío por su ID
     public Optional<Envio> obtenerPorId(Long id) {
@@ -85,9 +88,48 @@ public class EnvioService {
             System.out.println("⚠️ [USUARIO] No se proporcionó usuarioId en el request");
         }
         
+        // ========================================
+        // CÁLCULO DE COSTO DEL ENVÍO
+        // ========================================
+        // Fórmula: costo = 5.0 (Base) + (peso * 2.0) + (valorDeclarado * 0.01)
+        Double costoBase = 5.0;
+        Double costoPorPeso = (envio.getPesoLibras() != null ? envio.getPesoLibras() : 0.0) * 2.0;
+        Double costoValorDeclarado = (envio.getValorDeclarado() != null ? envio.getValorDeclarado() : 0.0) * 0.01;
+        Double costoTotal = costoBase + costoPorPeso + costoValorDeclarado;
+        
+        envio.setCostoEnvio(costoTotal);
+        System.out.println("💰 [COSTO] Cálculo del envío:");
+        System.out.println("   Base: $" + costoBase);
+        System.out.println("   Por peso (" + envio.getPesoLibras() + " lbs * 2.0): $" + costoPorPeso);
+        System.out.println("   Por valor ($" + envio.getValorDeclarado() + " * 0.01): $" + costoValorDeclarado);
+        System.out.println("   TOTAL: $" + costoTotal);
+        
         // Guardar en la base de datos
         Envio guardado = envioRepository.save(envio);
         System.out.println("✅ Envío guardado en BD con ID: " + guardado.getId() + ", Usuario ID: " + guardado.getUsuario().getId());
+        
+        // ========================================
+        // GENERACIÓN AUTOMÁTICA DE FACTURA
+        // ========================================
+        if (guardado.getUsuario() != null) {
+            System.out.println("📋 [FACTURA] Generando factura automática para envío: " + guardado.getId());
+            
+            Factura factura = new Factura();
+            factura.setUsuario(guardado.getUsuario());
+            factura.setEnvioId(guardado.getId());  // Vincular con el envío
+            factura.setMonto(guardado.getCostoEnvio());  // El monto es el costo del envío
+            factura.setEstado("PENDIENTE");
+            factura.setDescripcion("Envío " + guardado.getNumeroTracking() + ": " + guardado.getDescripcion());
+            factura.setFechaEmision(LocalDateTime.now());
+            factura.setFechaVencimiento(LocalDateTime.now().plusDays(15));  // Vencimiento en 15 días
+            
+            // Generar número de factura: FAC-{AÑO}-{ID}
+            factura.setNumeroFactura("FAC-" + java.time.Year.now().getValue() + "-" + String.format("%06d", guardado.getId()));
+            
+            Factura facturaGuardada = facturaRepository.save(factura);
+            System.out.println("✅ Factura creada: " + facturaGuardada.getNumeroFactura() + " por $" + facturaGuardada.getMonto());
+        }
+        
         return guardado;
     }
     

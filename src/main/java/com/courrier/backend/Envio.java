@@ -31,6 +31,13 @@ public class Envio {
 
     private String categoria; // A, B, C, etc.
 
+    // ========================================
+    // CÁLCULO DE COSTO (Sincronizado con Facturación)
+    // ========================================
+    // Fórmula: costo = 5.0 (Base) + (peso * 2.0) + (valorDeclarado * 0.01)
+    @Column(name = "costo_envio")
+    private Double costoEnvio;  // Costo calculado automáticamente al crear envío
+
     // RELACIÓN: Muchos envíos pertenecen a un usuario
     @ManyToOne
     @JoinColumn(name = "usuario_id")

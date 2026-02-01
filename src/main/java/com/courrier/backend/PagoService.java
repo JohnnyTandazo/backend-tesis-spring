@@ -58,13 +58,31 @@ public class PagoService {
         Pago pagGuardado = pagoRepository.save(pago);
         System.out.println("✅ Pago registrado con ID: " + pagGuardado.getId());
         
-        // Si el pago es confirmado y cubre la factura, marcar factura como PAGADA
-        if ("CONFIRMADO".equals(pago.getEstado()) && 
-            pago.getMonto() >= factura.getMonto()) {
-            factura.setEstado("PAGADA");
-            facturaRepository.save(factura);
-            System.out.println("✅ Factura marcada como PAGADA");
+        // ========================================
+        // SINCRONIZACIÓN: Actualizar estado de Factura
+        // ========================================
+        // Cambiar estado de factura basado en estado del pago
+        System.out.println("📋 [SINCRONIZACIÓN] Actualizando estado de factura...");
+        
+        if ("CONFIRMADO".equals(pago.getEstado())) {
+            // Si el pago es confirmado, marcar factura como EN_REVISION
+            factura.setEstado("EN_REVISION");
+            System.out.println("   Factura " + factura.getNumeroFactura() + " → EN_REVISION");
+            
+            // Si el pago cubre el monto total, marcar como PAGADA
+            if (pago.getMonto() >= factura.getMonto()) {
+                factura.setEstado("PAGADA");
+                System.out.println("   Factura " + factura.getNumeroFactura() + " → PAGADA (pago total recibido)");
+            }
+        } else if ("RECHAZADO".equals(pago.getEstado())) {
+            // Si el pago fue rechazado, volver a PENDIENTE
+            factura.setEstado("PENDIENTE");
+            System.out.println("   Factura " + factura.getNumeroFactura() + " → PENDIENTE (pago rechazado)");
         }
+        
+        // Guardar factura actualizada
+        facturaRepository.save(factura);
+        System.out.println("✅ Factura sincronizada: " + factura.getNumeroFactura() + " - Estado: " + factura.getEstado());
         
         return pagGuardado;
     }
