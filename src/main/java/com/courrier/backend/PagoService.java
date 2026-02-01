@@ -36,51 +36,45 @@ public class PagoService {
     }
 
     /**
-     * Registrar un nuevo pago
+     * Registrar un nuevo pago (multipart/form-data)
      */
-    public Pago registrarPago(Pago pago) {
-        System.out.println("💰 [PagoService] Registrando nuevo pago: $" + pago.getMonto());
+    public Pago registrarPago(Long facturaId,
+                              Double monto,
+                              String metodoPago,
+                              String referencia,
+                              String comprobanteNombre) {
+        System.out.println("💰 [PagoService] Registrando nuevo pago: $" + monto);
         
         // Buscar la factura
-        Factura factura = facturaRepository.findById(pago.getFactura().getId())
+        Factura factura = facturaRepository.findById(facturaId)
             .orElseThrow(() -> new RuntimeException("Factura no encontrada"));
         
         // Validar que el monto no exceda la factura
-        if (pago.getMonto() > factura.getMonto()) {
+        if (monto > factura.getMonto()) {
             System.out.println("❌ Monto de pago excede el monto de la factura");
             throw new RuntimeException("El monto del pago no puede exceder el monto de la factura");
         }
         
-        // Asignar la factura (por si no viene)
+        // Crear el pago
+        Pago pago = new Pago();
         pago.setFactura(factura);
+        pago.setMonto(monto);
+        pago.setMetodoPago(metodoPago);
+        pago.setReferencia(referencia);
+        pago.setComprobante(comprobanteNombre);
+        pago.setEstado("CONFIRMADO");
         
         // Guardar pago
         Pago pagGuardado = pagoRepository.save(pago);
         System.out.println("✅ Pago registrado con ID: " + pagGuardado.getId());
         
         // ========================================
-        // SINCRONIZACIÓN: Actualizar estado de Factura
+        // SINCRONIZACIÓN SIMPLIFICADA (DEMO)
         // ========================================
-        // Cambiar estado de factura basado en estado del pago
-        System.out.println("📋 [SINCRONIZACIÓN] Actualizando estado de factura...");
+        System.out.println("📋 [SINCRONIZACIÓN] Marcando factura como PAGADO...");
         
-        if ("CONFIRMADO".equals(pago.getEstado())) {
-            // Si el pago es confirmado, marcar factura como EN_REVISION
-            factura.setEstado("EN_REVISION");
-            System.out.println("   Factura " + factura.getNumeroFactura() + " → EN_REVISION");
-            
-            // Si el pago cubre el monto total, marcar como PAGADA
-            if (pago.getMonto() >= factura.getMonto()) {
-                factura.setEstado("PAGADA");
-                System.out.println("   Factura " + factura.getNumeroFactura() + " → PAGADA (pago total recibido)");
-            }
-        } else if ("RECHAZADO".equals(pago.getEstado())) {
-            // Si el pago fue rechazado, volver a PENDIENTE
-            factura.setEstado("PENDIENTE");
-            System.out.println("   Factura " + factura.getNumeroFactura() + " → PENDIENTE (pago rechazado)");
-        }
-        
-        // Guardar factura actualizada
+        // En demo, cualquier pago registrado saca la factura de pendientes
+        factura.setEstado("PAGADO");
         facturaRepository.save(factura);
         System.out.println("✅ Factura sincronizada: " + factura.getNumeroFactura() + " - Estado: " + factura.getEstado());
         

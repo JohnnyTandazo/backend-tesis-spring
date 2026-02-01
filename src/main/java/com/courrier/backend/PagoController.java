@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Optional;
 
@@ -85,14 +86,20 @@ public class PagoController {
 
     /**
      * POST /api/pagos
-     * Registrar un nuevo pago
+     * Registrar un nuevo pago (multipart/form-data)
      */
     @PostMapping
-    public ResponseEntity<Pago> registrarPago(@RequestBody Pago pago) {
-        System.out.println("💰 [POST /api/pagos] PETICIÓN RECIBIDA - Monto: $" + pago.getMonto());
+    public ResponseEntity<Pago> registrarPago(
+            @RequestParam("facturaId") Long facturaId,
+            @RequestParam("monto") Double monto,
+            @RequestParam("metodoPago") String metodoPago,
+            @RequestParam("referencia") String referencia,
+            @RequestParam(value = "comprobante", required = false) MultipartFile comprobante) {
+        System.out.println("💰 [POST /api/pagos] PETICIÓN RECIBIDA - Monto: $" + monto);
         
         try {
-            Pago nuevo = pagoService.registrarPago(pago);
+            String comprobanteNombre = (comprobante != null ? comprobante.getOriginalFilename() : null);
+            Pago nuevo = pagoService.registrarPago(facturaId, monto, metodoPago, referencia, comprobanteNombre);
             System.out.println("✅ Pago registrado con ID: " + nuevo.getId());
             return ResponseEntity.status(HttpStatus.CREATED).body(nuevo);
         } catch (Exception e) {
