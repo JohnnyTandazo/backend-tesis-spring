@@ -11,6 +11,9 @@ public class EnvioService {
 
     @Autowired
     private EnvioRepository envioRepository;
+    
+    @Autowired
+    private UsuarioRepository usuarioRepository;
 
     // Obtener un envío por su ID
     public Optional<Envio> obtenerPorId(Long id) {
@@ -63,13 +66,28 @@ public class EnvioService {
         System.out.println("   - Dirección: " + envio.getDestinatarioDireccion());
         System.out.println("   - Teléfono: " + envio.getDestinatarioTelefono());
         
-        // Si viene un usuarioId, asociar el usuario
-        // NOTA: En producción, obtener el usuario del contexto de seguridad
-        // por ahora se recibe en el request si es necesario
+        // ========================================
+        // CRÍTICO: Buscar y Asignar el Usuario
+        // ========================================
+        if (request.getUsuarioId() != null) {
+            System.out.println("👤 [USUARIO] Buscando usuario con ID: " + request.getUsuarioId());
+            
+            Usuario usuario = usuarioRepository.findById(request.getUsuarioId())
+                .orElseThrow(() -> {
+                    System.out.println("❌ Usuario NO encontrado con ID: " + request.getUsuarioId());
+                    return new RuntimeException("Usuario no encontrado con ID: " + request.getUsuarioId());
+                });
+            
+            // ASIGNAR el usuario al envío (esto es CRÍTICO para evitar usuario_id NULL)
+            envio.setUsuario(usuario);
+            System.out.println("✅ Usuario asignado: " + usuario.getId());
+        } else {
+            System.out.println("⚠️ [USUARIO] No se proporcionó usuarioId en el request");
+        }
         
         // Guardar en la base de datos
         Envio guardado = envioRepository.save(envio);
-        System.out.println("✅ Envío guardado en BD con ID: " + guardado.getId());
+        System.out.println("✅ Envío guardado en BD con ID: " + guardado.getId() + ", Usuario ID: " + guardado.getUsuario().getId());
         return guardado;
     }
     
