@@ -76,10 +76,11 @@ public class EnvioController {
 
     // 5. POST: Crear un nuevo envío
     @PostMapping
-    public ResponseEntity<Envio> crearEnvio(@RequestBody Envio envio) {
+    public ResponseEntity<Envio> crearEnvio(@RequestBody CrearEnvioRequest request) {
         System.out.println("✍️ [POST /api/envios] ✅ PETICIÓN RECIBIDA - Creando nuevo envío...");
-        System.out.println("   Datos: " + envio.getNumeroTracking());
-        Envio envioCreado = envioService.crearEnvio(envio);
+        System.out.println("   Número Tracking: " + request.getNumeroTracking());
+        System.out.println("   Destinatario: " + request.getDestinatarioNombre());
+        Envio envioCreado = envioService.crearEnvio(request);
         System.out.println("✅ Envío creado exitosamente: ID=" + envioCreado.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(envioCreado);
     }

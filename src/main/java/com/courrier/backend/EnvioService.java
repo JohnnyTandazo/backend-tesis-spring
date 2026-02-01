@@ -35,9 +35,46 @@ public class EnvioService {
         return envioRepository.findByNumeroTracking(numeroTracking);
     }
 
-    // Crear un nuevo envío
+    // Crear un nuevo envío (con mapeo del DTO al Envio)
+    public Envio crearEnvio(CrearEnvioRequest request) {
+        System.out.println("✍️ [EnvioService] Creando nuevo envío: " + request.getNumeroTracking());
+        
+        // Crear la entidad Envio
+        Envio envio = new Envio();
+        
+        // Mapear campos básicos
+        envio.setNumeroTracking(request.getNumeroTracking());
+        envio.setDescripcion(request.getDescripcion());
+        envio.setPesoLibras(request.getPesoLibras());
+        envio.setValorDeclarado(request.getValorDeclarado());
+        envio.setEstado(request.getEstado());
+        envio.setCategoria(request.getCategoria());
+        
+        // IMPORTANTE: Mapear campos del PATRÓN SNAPSHOT - Dirección Destinatario
+        envio.setDestinatarioNombre(request.getDestinatarioNombre());
+        envio.setDestinatarioCiudad(request.getDestinatarioCiudad());
+        envio.setDestinatarioDireccion(request.getDestinatarioDireccion());
+        envio.setDestinatarioTelefono(request.getDestinatarioTelefono());
+        
+        System.out.println("📸 [SNAPSHOT] Capturando dirección de destino:");
+        System.out.println("   - Nombre: " + envio.getDestinatarioNombre());
+        System.out.println("   - Ciudad: " + envio.getDestinatarioCiudad());
+        System.out.println("   - Dirección: " + envio.getDestinatarioDireccion());
+        System.out.println("   - Teléfono: " + envio.getDestinatarioTelefono());
+        
+        // Si viene un usuarioId, asociar el usuario
+        // NOTA: En producción, obtener el usuario del contexto de seguridad
+        // por ahora se recibe en el request si es necesario
+        
+        // Guardar en la base de datos
+        Envio guardado = envioRepository.save(envio);
+        System.out.println("✅ Envío guardado en BD con ID: " + guardado.getId());
+        return guardado;
+    }
+    
+    // Crear un nuevo envío (Sobrecarga para compatibilidad - recibe Envio directamente)
     public Envio crearEnvio(Envio envio) {
-        System.out.println("✍️ [EnvioService] Creando nuevo envío: " + envio.getNumeroTracking());
+        System.out.println("✍️ [EnvioService] Creando nuevo envío (Entidad directa): " + envio.getNumeroTracking());
         return envioRepository.save(envio);
     }
 
