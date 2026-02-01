@@ -14,6 +14,9 @@ public class UsuarioController {
     @Autowired
     private UsuarioRepository repositorio;
 
+    @Autowired
+    private DireccionService direccionService;
+
     // 1. GET: Para ver todos los usuarios registrados
     @GetMapping
     public List<Usuario> listarUsuarios() {
@@ -64,5 +67,14 @@ public class UsuarioController {
         Usuario usuarioGuardado = repositorio.save(usuario);
         System.out.println("✅ Usuario registrado exitosamente: ID=" + usuarioGuardado.getId() + ", Email=" + usuarioGuardado.getEmail());
         return usuarioGuardado;
+    }
+
+    // 5. GET: Obtener direcciones de un usuario específico
+    @GetMapping("/{id}/direcciones")
+    public List<Direccion> obtenerDireccionesDeUsuario(@PathVariable Long id) {
+        System.out.println("📍 [GET /api/usuarios/" + id + "/direcciones] Obteniendo direcciones del usuario: " + id);
+        List<Direccion> direcciones = direccionService.obtenerPorUsuario(id);
+        System.out.println("✅ Se encontraron " + direcciones.size() + " direcciones");
+        return direcciones;
     }
 }
