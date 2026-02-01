@@ -1,6 +1,7 @@
 package com.courrier.backend;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
@@ -17,16 +18,16 @@ public class EnvioService {
         return envioRepository.findById(id);
     }
 
-    // Obtener todos los envíos
+    // Obtener todos los envíos (ordenados descendentemente - más recientes primero)
     public List<Envio> obtenerTodos() {
-        System.out.println("📦 [EnvioService] Obteniendo todos los envíos...");
-        return envioRepository.findAll();
+        System.out.println("📦 [EnvioService] Obteniendo todos los envíos (ordenados DESC)...");
+        return envioRepository.findAll(Sort.by(Sort.Direction.DESC, "id"));
     }
 
-    // Obtener envíos de un usuario específico
+    // Obtener envíos de un usuario específico (ordenados descendentemente - más recientes primero)
     public List<Envio> obtenerPorUsuario(Long usuarioId) {
-        System.out.println("👤 [EnvioService] Obteniendo envíos del usuario: " + usuarioId);
-        return envioRepository.findByUsuarioId(usuarioId);
+        System.out.println("👤 [EnvioService] Obteniendo envíos del usuario: " + usuarioId + " (ordenados DESC)");
+        return envioRepository.findByUsuarioId(usuarioId, Sort.by(Sort.Direction.DESC, "id"));
     }
 
     // Obtener envío por número de tracking
