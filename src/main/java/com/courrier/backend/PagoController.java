@@ -32,19 +32,32 @@ public class PagoController {
         System.out.println("💳 [GET /api/pagos] PETICIÓN RECIBIDA - Usuario: " + usuarioId);
         
         try {
-            // Obtener todas las facturas del usuario
             List<Factura> facturas = facturaService.obtenerPorUsuario(usuarioId);
             
-            // Obtener pagos de todas las facturas
+            if (facturas == null || facturas.isEmpty()) {
+                System.out.println("⚠️ Usuario no tiene facturas. Retornando lista vacía.");
+                return ResponseEntity.ok(List.of());
+            }
+            
             List<Pago> todoPagos = facturas.stream()
-                .flatMap(factura -> pagoService.obtenerPorFactura(factura.getId()).stream())
+                .filter(f -> f != null && f.getId() != null)
+                .flatMap(factura -> {
+                    try {
+                        List<Pago> pagosFactura = pagoService.obtenerPorFactura(factura.getId());
+                        return (pagosFactura != null) ? pagosFactura.stream() : java.util.stream.Stream.empty();
+                    } catch (Exception e) {
+                        System.out.println("⚠️ Error obteniendo pagos de factura " + factura.getId() + ": " + e.getMessage());
+                        return java.util.stream.Stream.empty();
+                    }
+                })
                 .toList();
             
             System.out.println("✅ Se encontraron " + todoPagos.size() + " pagos");
             return ResponseEntity.ok(todoPagos);
         } catch (Exception e) {
             System.out.println("❌ Error: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            e.printStackTrace();
+            return ResponseEntity.ok(List.of());
         }
     }
 

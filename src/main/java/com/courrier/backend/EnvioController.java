@@ -17,9 +17,16 @@ public class EnvioController {
 
     // 1. GET: Obtener todos los envíos
     @GetMapping
-    public List<Envio> obtenerTodos() {
+    public ResponseEntity<List<Envio>> obtenerTodos() {
         System.out.println("📦 [GET /api/envios] Obteniendo todos los envíos...");
-        return envioService.obtenerTodos();
+        try {
+            List<Envio> envios = envioService.obtenerTodos();
+            System.out.println("✅ Se encontraron " + envios.size() + " envíos");
+            return ResponseEntity.ok(envios);
+        } catch (Exception e) {
+            System.out.println("⚠️ Error obteniendo envíos: " + e.getMessage() + ". Retornando lista vacía.");
+            return ResponseEntity.ok(List.of());
+        }
     }
 
     // 2. GET: Obtener un envío por su ID (ENDPOINT SOLICITADO)

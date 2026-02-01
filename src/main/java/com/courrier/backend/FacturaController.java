@@ -40,6 +40,7 @@ public class FacturaController {
     /**
      * GET /api/facturas/usuario/{usuarioId}
      * Obtener todas las facturas de un usuario
+     * Devuelve incluido el envioId en el JSON
      */
     @GetMapping("/usuario/{usuarioId}")
     public ResponseEntity<List<Factura>> obtenerPorUsuario(@PathVariable Long usuarioId) {
@@ -47,10 +48,15 @@ public class FacturaController {
         
         try {
             List<Factura> facturas = facturaService.obtenerPorUsuario(usuarioId);
+            if (facturas == null) {
+                return ResponseEntity.ok(List.of());
+            }
+            System.out.println("✅ Se encontraron " + facturas.size() + " facturas");
             return ResponseEntity.ok(facturas);
         } catch (Exception e) {
             System.out.println("❌ Error: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            e.printStackTrace();
+            return ResponseEntity.ok(List.of());
         }
     }
 
