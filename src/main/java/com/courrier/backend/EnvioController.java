@@ -15,13 +15,19 @@ public class EnvioController {
     @Autowired
     private EnvioService envioService;
 
-    // 1. GET: Obtener todos los envíos
+    // 1. GET: Obtener envíos (con filtro opcional por usuarioId)
     @GetMapping
-    public ResponseEntity<List<Envio>> obtenerTodos() {
-        System.out.println("📦 [GET /api/envios] Obteniendo todos los envíos...");
+    public ResponseEntity<List<Envio>> obtenerTodos(@RequestParam(required = false) Long usuarioId) {
+        System.out.println("📦 [GET /api/envios] PETICIÓN RECIBIDA - usuarioId: " + usuarioId);
         try {
-            List<Envio> envios = envioService.obtenerTodos();
-            System.out.println("✅ Se encontraron " + envios.size() + " envíos");
+            List<Envio> envios;
+            if (usuarioId != null) {
+                envios = envioService.obtenerPorUsuario(usuarioId);
+                System.out.println("✅ Se encontraron " + envios.size() + " envíos del usuario: " + usuarioId);
+            } else {
+                envios = envioService.obtenerTodos();
+                System.out.println("✅ Se encontraron " + envios.size() + " envíos en total");
+            }
             return ResponseEntity.ok(envios);
         } catch (Exception e) {
             System.out.println("⚠️ Error obteniendo envíos: " + e.getMessage() + ". Retornando lista vacía.");
