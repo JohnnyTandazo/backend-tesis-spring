@@ -3,6 +3,7 @@ package com.courrier.backend;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 
 @Component
@@ -21,6 +22,7 @@ public class CargaDeDatos implements CommandLineRunner {
     private PagoRepository pagoRepo;
 
     @Override
+    @Transactional
     public void run(String... args) throws Exception {
         System.out.println("🔍 [CargaDeDatos] Verificando base de datos... Usuarios encontrados: " + usuarioRepo.count());
         
