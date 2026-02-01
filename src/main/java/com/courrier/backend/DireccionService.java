@@ -42,18 +42,77 @@ public class DireccionService {
     // Crear una nueva dirección
     @Transactional
     public Direccion crearDireccion(Direccion direccion, Long usuarioId) {
-        System.out.println("✍️ [DireccionService] Creando nueva dirección para usuario: " + usuarioId);
+        System.out.println("\n🔄 [DireccionService.crearDireccion] ===== INICIANDO CREACIÓN =====");
+        System.out.println("   usuarioId recibido: " + usuarioId);
         
+        // ============ VALIDACIÓN DE ENTRADA ============
+        System.out.println("📋 PASO 1: Validando parámetros de entrada...");
+        
+        if (usuarioId == null || usuarioId <= 0) {
+            System.out.println("❌ ERROR: usuarioId es nulo o inválido: " + usuarioId);
+            throw new RuntimeException("usuarioId no puede ser nulo o menor que 1");
+        }
+        System.out.println("   ✅ usuarioId válido: " + usuarioId);
+        
+        if (direccion == null) {
+            System.out.println("❌ ERROR: Objeto Direccion es nulo");
+            throw new RuntimeException("El objeto Direccion no puede ser nulo");
+        }
+        System.out.println("   ✅ Objeto Direccion recibido");
+        
+        // ============ VALIDACIÓN DE CAMPOS REQUERIDOS ============
+        System.out.println("📋 PASO 2: Validando campos requeridos...");
+        
+        if (direccion.getAlias() == null || direccion.getAlias().trim().isEmpty()) {
+            System.out.println("❌ ERROR: alias es requerido");
+            throw new RuntimeException("El campo 'alias' es requerido (Ej: Casa, Oficina)");
+        }
+        System.out.println("   ✅ alias: " + direccion.getAlias());
+        
+        if (direccion.getCallePrincipal() == null || direccion.getCallePrincipal().trim().isEmpty()) {
+            System.out.println("❌ ERROR: callePrincipal es requerido");
+            throw new RuntimeException("El campo 'callePrincipal' es requerido");
+        }
+        System.out.println("   ✅ callePrincipal: " + direccion.getCallePrincipal());
+        
+        if (direccion.getCiudad() == null || direccion.getCiudad().trim().isEmpty()) {
+            System.out.println("❌ ERROR: ciudad es requerida");
+            throw new RuntimeException("El campo 'ciudad' es requerido");
+        }
+        System.out.println("   ✅ ciudad: " + direccion.getCiudad());
+        
+        if (direccion.getTelefono() == null || direccion.getTelefono().trim().isEmpty()) {
+            System.out.println("❌ ERROR: telefono es requerido");
+            throw new RuntimeException("El campo 'telefono' es requerido");
+        }
+        System.out.println("   ✅ telefono: " + direccion.getTelefono());
+        
+        // ============ BUSCAR USUARIO ============
+        System.out.println("📋 PASO 3: Buscando usuario en base de datos...");
         Usuario usuario = usuarioRepository.findById(usuarioId)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado con ID: " + usuarioId));
+                .orElseThrow(() -> {
+                    System.out.println("❌ ERROR: Usuario no encontrado con ID: " + usuarioId);
+                    return new RuntimeException("Usuario no encontrado con ID: " + usuarioId);
+                });
         
+        System.out.println("✅ Usuario encontrado: " + usuario.getNombre() + " (" + usuario.getEmail() + ")");
+        
+        // ============ ASIGNAR USUARIO ============
+        System.out.println("📋 PASO 4: Asignando usuario a la dirección...");
         direccion.setUsuario(usuario);
+        System.out.println("   ✅ Usuario asignado");
         
-        // Si es la primera dirección del usuario, hacerla principal automáticamente
+        // ============ VALIDACIÓN DE DIRECCIÓN PRINCIPAL ============
+        System.out.println("📋 PASO 5: Verificando si será dirección principal...");
         long cantidadDirecciones = direccionRepository.countByUsuarioId(usuarioId);
+        System.out.println("   Direcciones existentes del usuario: " + cantidadDirecciones);
+        
         if (cantidadDirecciones == 0) {
             direccion.setEsPrincipal(true);
-            System.out.println("   ⭐ Primera dirección del usuario - Marcada como principal");
+            System.out.println("   ⭐ Marcada como dirección PRINCIPAL (primera del usuario)");
+        } else {
+            direccion.setEsPrincipal(false);
+            System.out.println("   📌 Marcada como dirección SECUNDARIA");
         }
         
         // Si se marca como principal, desmarcar la anterior
@@ -66,9 +125,22 @@ public class DireccionService {
             }
         }
         
-        Direccion guardada = direccionRepository.save(direccion);
-        System.out.println("✅ Dirección creada: " + guardada.getAlias());
-        return guardada;
+        // ============ GUARDAR EN BASE DE DATOS ============
+        System.out.println("📋 PASO 6: Guardando en base de datos...");
+        try {
+            Direccion guardada = direccionRepository.save(direccion);
+            System.out.println("✅ Dirección guardada exitosamente!");
+            System.out.println("   ID generado: " + guardada.getId());
+            System.out.println("   Alias: " + guardada.getAlias());
+            System.out.println("   Dirección: " + guardada.getCallePrincipal() + ", " + guardada.getCiudad());
+            System.out.println("   Es Principal: " + guardada.getEsPrincipal());
+            System.out.println("===== CREACIÓN COMPLETADA CON ÉXITO =====\n");
+            return guardada;
+        } catch (Exception e) {
+            System.out.println("❌ ERROR al guardar en BD: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Error al guardar la dirección: " + e.getMessage());
+        }
     }
 
     // Actualizar una dirección

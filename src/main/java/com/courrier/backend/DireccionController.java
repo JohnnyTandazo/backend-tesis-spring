@@ -14,11 +14,28 @@ public class DireccionController {
     @Autowired
     private DireccionService direccionService;
 
-    // 1. GET: Obtener todas las direcciones
+    // 1. GET: Obtener direcciones del usuario (por usuarioId como parámetro)
     @GetMapping
-    public List<Direccion> obtenerTodas() {
-        System.out.println("📍 [GET /api/direcciones] Obteniendo todas las direcciones...");
-        return direccionService.obtenerTodas();
+    public ResponseEntity<?> obtenerDireccionesDeUsuario(
+            @RequestParam(required = false) Long usuarioId) {
+        
+        if (usuarioId == null) {
+            System.out.println("⚠️ [GET /api/direcciones] No se proporcionó usuarioId");
+            return ResponseEntity.badRequest().body(java.util.Map.of(
+                "error", "usuarioId es requerido",
+                "ejemplo", "GET /api/direcciones?usuarioId=1"
+            ));
+        }
+        
+        System.out.println("📍 [GET /api/direcciones?usuarioId=" + usuarioId + "] Obteniendo direcciones del usuario: " + usuarioId);
+        try {
+            List<Direccion> direcciones = direccionService.obtenerPorUsuario(usuarioId);
+            System.out.println("✅ Se encontraron " + direcciones.size() + " direcciones");
+            return ResponseEntity.ok(direcciones);
+        } catch (RuntimeException e) {
+            System.out.println("❌ Error: " + e.getMessage());
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
+        }
     }
 
     // 2. GET: Obtener una dirección por su ID
@@ -30,22 +47,63 @@ public class DireccionController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // 3. POST: Crear una nueva dirección
+    // 3. POST: Crear una nueva dirección (MEJORADO - acepta usuarioId en body o query)
     @PostMapping
-    public ResponseEntity<Direccion> crearDireccion(
-            @RequestBody Direccion direccion,
-            @RequestParam Long usuarioId) {
+    public ResponseEntity<?> crearDireccion(
+            @RequestBody java.util.Map<String, Object> payload,
+            @RequestParam(required = false) Long usuarioId) {
         
-        System.out.println("✍️ [POST /api/direcciones] ✅ PETICIÓN RECIBIDA - Creando dirección para usuario: " + usuarioId);
-        System.out.println("   Datos: " + direccion.getAlias() + " - " + direccion.getCiudad());
+        System.out.println("✍️ [POST /api/direcciones] ✅ PETICIÓN RECIBIDA");
+        System.out.println("   Query param usuarioId: " + usuarioId);
+        System.out.println("   Payload keys: " + payload.keySet());
         
         try {
-            Direccion direccionCreada = direccionService.crearDireccion(direccion, usuarioId);
+            // Obtener usuarioId: primero del parámetro, luego del body
+            Long userId = usuarioId;
+            if (userId == null && payload.containsKey("usuarioId")) {
+                userId = Long.valueOf(payload.get("usuarioId").toString());
+            }
+            
+            if (userId == null) {
+                System.out.println("❌ Error: No se proporcionó usuarioId");
+                return ResponseEntity.badRequest().body(java.util.Map.of(
+                    "error", "usuarioId es requerido",
+                    "ejemplo1", "POST /api/direcciones?usuarioId=1",
+                    "ejemplo2", "POST /api/direcciones con {usuarioId: 1, alias: 'Casa', ...}"
+                ));
+            }
+            
+            // Crear objeto Direccion desde el payload
+            Direccion direccion = new Direccion();
+            direccion.setAlias((String) payload.get("alias"));
+            direccion.setCallePrincipal((String) payload.get("callePrincipal"));
+            direccion.setCalleSecundaria((String) payload.get("calleSecundaria"));
+            direccion.setCiudad((String) payload.get("ciudad"));
+            direccion.setTelefono((String) payload.get("telefono"));
+            direccion.setReferencia((String) payload.get("referencia"));
+            
+            if (payload.containsKey("esPrincipal")) {
+                direccion.setEsPrincipal(Boolean.valueOf(payload.get("esPrincipal").toString()));
+            }
+            
+            System.out.println("   Creando para usuario ID: " + userId);
+            System.out.println("   Datos: " + direccion.getAlias() + " - " + direccion.getCiudad());
+            
+            Direccion direccionCreada = direccionService.crearDireccion(direccion, userId);
             System.out.println("✅ Dirección creada exitosamente: ID=" + direccionCreada.getId());
             return ResponseEntity.status(HttpStatus.CREATED).body(direccionCreada);
+            
+        } catch (NumberFormatException e) {
+            System.out.println("❌ Error: usuarioId debe ser numérico");
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", "usuarioId debe ser numérico"));
         } catch (RuntimeException e) {
-            System.out.println("❌ Error al crear dirección: " + e.getMessage());
-            return ResponseEntity.badRequest().build();
+            System.out.println("❌ Error: " + e.getMessage());
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            System.out.println("❌ Error inesperado: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(java.util.Map.of("error", "Error interno del servidor"));
         }
     }
 
