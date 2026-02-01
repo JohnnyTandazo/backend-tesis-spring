@@ -1,0 +1,148 @@
+package com.courrier.backend;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * PagoController - API REST para Pagos
+ * Endpoints: GET, POST, PUT, DELETE
+ */
+@CrossOrigin(origins = "*")
+@RestController
+@RequestMapping("/api/pagos")
+public class PagoController {
+
+    @Autowired
+    private PagoService pagoService;
+
+    @Autowired
+    private FacturaService facturaService;
+
+    /**
+     * GET /api/pagos?usuarioId={id}
+     * Obtener historial de pagos (pagos de todas las facturas del usuario)
+     */
+    @GetMapping
+    public ResponseEntity<List<Pago>> obtenerHistorial(@RequestParam Long usuarioId) {
+        System.out.println("💳 [GET /api/pagos] PETICIÓN RECIBIDA - Usuario: " + usuarioId);
+        
+        try {
+            // Obtener todas las facturas del usuario
+            List<Factura> facturas = facturaService.obtenerPorUsuario(usuarioId);
+            
+            // Obtener pagos de todas las facturas
+            List<Pago> todoPagos = facturas.stream()
+                .flatMap(factura -> pagoService.obtenerPorFactura(factura.getId()).stream())
+                .toList();
+            
+            System.out.println("✅ Se encontraron " + todoPagos.size() + " pagos");
+            return ResponseEntity.ok(todoPagos);
+        } catch (Exception e) {
+            System.out.println("❌ Error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * GET /api/pagos/factura/{facturaId}
+     * Obtener pagos de una factura específica
+     */
+    @GetMapping("/factura/{facturaId}")
+    public ResponseEntity<List<Pago>> obtenerPorFactura(@PathVariable Long facturaId) {
+        System.out.println("💳 [GET /api/pagos/factura/" + facturaId + "] PETICIÓN RECIBIDA");
+        
+        try {
+            List<Pago> pagos = pagoService.obtenerPorFactura(facturaId);
+            System.out.println("✅ Se encontraron " + pagos.size() + " pagos para factura: " + facturaId);
+            return ResponseEntity.ok(pagos);
+        } catch (Exception e) {
+            System.out.println("❌ Error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * GET /api/pagos/{id}
+     * Obtener un pago por ID
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<Pago> obtenerPorId(@PathVariable Long id) {
+        System.out.println("🔍 [GET /api/pagos/" + id + "] PETICIÓN RECIBIDA");
+        
+        Optional<Pago> pago = pagoService.obtenerPorId(id);
+        if (pago.isPresent()) {
+            System.out.println("✅ Pago encontrado: $" + pago.get().getMonto());
+            return ResponseEntity.ok(pago.get());
+        } else {
+            System.out.println("❌ Pago no encontrado");
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    /**
+     * POST /api/pagos
+     * Registrar un nuevo pago
+     */
+    @PostMapping
+    public ResponseEntity<Pago> registrarPago(@RequestBody Pago pago) {
+        System.out.println("💰 [POST /api/pagos] PETICIÓN RECIBIDA - Monto: $" + pago.getMonto());
+        
+        try {
+            Pago nuevo = pagoService.registrarPago(pago);
+            System.out.println("✅ Pago registrado con ID: " + nuevo.getId());
+            return ResponseEntity.status(HttpStatus.CREATED).body(nuevo);
+        } catch (Exception e) {
+            System.out.println("❌ Error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    /**
+     * PUT /api/pagos/{id}/estado
+     * Actualizar estado de un pago (PENDIENTE -> CONFIRMADO)
+     */
+    @PutMapping("/{id}/estado")
+    public ResponseEntity<Pago> actualizarEstado(
+            @PathVariable Long id,
+            @RequestParam String nuevoEstado) {
+        System.out.println("🔄 [PUT /api/pagos/" + id + "/estado] Estado: " + nuevoEstado);
+        
+        try {
+            Pago actualizado = pagoService.actualizarEstado(id, nuevoEstado);
+            System.out.println("✅ Estado actualizado a: " + nuevoEstado);
+            return ResponseEntity.ok(actualizado);
+        } catch (Exception e) {
+            System.out.println("❌ Error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    /**
+     * DELETE /api/pagos/{id}
+     * Eliminar un pago (solo si es PENDIENTE)
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminarPago(@PathVariable Long id) {
+        System.out.println("🗑️ [DELETE /api/pagos/" + id + "] PETICIÓN RECIBIDA");
+        
+        try {
+            Optional<Pago> pago = pagoService.obtenerPorId(id);
+            
+            if (pago.isPresent() && "PENDIENTE".equals(pago.get().getEstado())) {
+                pagoService.eliminarPago(id);
+                System.out.println("✅ Pago eliminado");
+                return ResponseEntity.noContent().build();
+            } else {
+                System.out.println("❌ Solo se pueden eliminar pagos PENDIENTE");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            }
+        } catch (Exception e) {
+            System.out.println("❌ Error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+}
