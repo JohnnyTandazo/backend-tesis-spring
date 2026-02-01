@@ -98,6 +98,25 @@ public class EnvioController {
         }
     }
 
+    // 6b. PUT: Actualizar SOLO el estado de un envío
+    @PutMapping("/{id}/estado")
+    public ResponseEntity<Envio> actualizarEstado(
+            @PathVariable Long id, 
+            @RequestParam String nuevoEstado) {
+        
+        System.out.println("🔄 [PUT /api/envios/" + id + "/estado] ✅ PETICIÓN RECIBIDA");
+        System.out.println("   Cambiando estado a: " + nuevoEstado);
+        
+        try {
+            Envio envioActualizado = envioService.actualizarEstado(id, nuevoEstado);
+            System.out.println("✅ Estado actualizado exitosamente: ID=" + id + ", Nuevo estado=" + nuevoEstado);
+            return ResponseEntity.ok(envioActualizado);
+        } catch (RuntimeException e) {
+            System.out.println("❌ Error al actualizar estado: " + e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     // 7. DELETE: Eliminar un envío
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminarEnvio(@PathVariable Long id) {

@@ -67,6 +67,28 @@ public class EnvioService {
         }).orElseThrow(() -> new RuntimeException("Envío no encontrado"));
     }
 
+    // Actualizar solo el estado de un envío
+    public Envio actualizarEstado(Long id, String nuevoEstado) {
+        System.out.println("🔄 [EnvioService] Actualizando estado del envío ID: " + id + " a: " + nuevoEstado);
+        
+        return envioRepository.findById(id).map(envio -> {
+            envio.setEstado(nuevoEstado);
+            
+            // Si el estado es ENTREGADO, registrar fecha de entrega
+            if ("ENTREGADO".equals(nuevoEstado)) {
+                envio.setFechaEntrega(java.time.LocalDateTime.now());
+                System.out.println("📅 Fecha de entrega registrada: " + envio.getFechaEntrega());
+            }
+            
+            Envio guardado = envioRepository.save(envio);
+            System.out.println("✅ Estado actualizado en BD: " + nuevoEstado);
+            return guardado;
+        }).orElseThrow(() -> {
+            System.out.println("❌ Envío no encontrado con ID: " + id);
+            return new RuntimeException("Envío no encontrado con ID: " + id);
+        });
+    }
+
     // Eliminar un envío
     public void eliminarEnvio(Long id) {
         System.out.println("🗑️ [EnvioService] Eliminando envío con ID: " + id);
