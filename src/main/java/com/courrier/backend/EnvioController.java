@@ -59,6 +59,21 @@ public class EnvioController {
         }
     }
 
+    // 4b. GET: Obtener envío por ID (Ruta directa - Compatibilidad con caché del frontend)
+    @GetMapping("/{id}")
+    public ResponseEntity<Envio> obtenerEnvioPorIdDirecto(@PathVariable Long id) {
+        System.out.println("🔎 [GET /api/envios/" + id + "] (Ruta directa - compatibilidad) Buscando envío por ID: " + id);
+        Optional<Envio> envio = envioService.obtenerPorId(id);
+        
+        if (envio.isPresent()) {
+            System.out.println("✅ Envío encontrado: ID=" + id + ", Tracking=" + envio.get().getNumeroTracking());
+            return ResponseEntity.ok(envio.get());
+        } else {
+            System.out.println("❌ Envío NO encontrado con ID: " + id);
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     // 5. POST: Crear un nuevo envío
     @PostMapping
     public ResponseEntity<Envio> crearEnvio(@RequestBody Envio envio) {
