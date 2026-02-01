@@ -23,9 +23,9 @@ public class EnvioController {
     }
 
     // 2. GET: Obtener un envío por su ID (ENDPOINT SOLICITADO)
-    @GetMapping("/{id}")
+    @GetMapping("/detalle/{id}")
     public ResponseEntity<Envio> obtenerEnvioPorId(@PathVariable Long id) {
-        System.out.println("🔍 [GET /api/envios/" + id + "] ✅ PETICIÓN RECIBIDA - Buscando envío por ID: " + id);
+        System.out.println("🔎 [GET /api/envios/detalle/" + id + "] ✅ PETICIÓN RECIBIDA - Buscando envío por ID: " + id);
         Optional<Envio> envio = envioService.obtenerPorId(id);
         
         if (envio.isPresent()) {
