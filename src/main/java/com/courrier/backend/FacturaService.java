@@ -24,7 +24,7 @@ public class FacturaService {
      */
     public List<Factura> obtenerPorUsuario(Long usuarioId) {
         System.out.println("📋 [FacturaService] Obteniendo facturas del usuario: " + usuarioId);
-        return facturaRepository.findByUsuarioId(usuarioId, Sort.by(Sort.Direction.DESC, "id"));
+        return facturaRepository.findByUsuarioIdWithEnvioAndUsuario(usuarioId);
     }
 
     /**
@@ -32,8 +32,7 @@ public class FacturaService {
      */
     public List<Factura> obtenerPendientes(Long usuarioId) {
         System.out.println("⏳ [FacturaService] Obteniendo facturas PENDIENTES del usuario: " + usuarioId);
-        return facturaRepository.findByUsuarioIdAndEstado(usuarioId, "PENDIENTE", 
-            Sort.by(Sort.Direction.DESC, "fechaVencimiento"));
+        return facturaRepository.findPendientesByUsuarioWithEnvio(usuarioId);
     }
 
     /**
@@ -41,7 +40,7 @@ public class FacturaService {
      */
     public Optional<Factura> obtenerPorId(Long id) {
         System.out.println("🔍 [FacturaService] Buscando factura con ID: " + id);
-        return facturaRepository.findById(id);
+        return Optional.ofNullable(facturaRepository.findByIdWithEnvio(id));
     }
 
     /**

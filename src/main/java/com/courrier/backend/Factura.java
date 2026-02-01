@@ -34,9 +34,13 @@ public class Factura {
     // RELACIÓN: Vinculación con Envío que genera la factura
     @Column(name = "envio_id")
     private Long envioId;  // ID del envío que genera esta factura
+    
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "envio_id", insertable = false, updatable = false)
+    private Envio envio;  // Relación JPA con Envio
 
     // RELACIÓN: Muchas facturas pertenecen a un usuario
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "usuario_id", nullable = false)
     private Usuario usuario;
 
