@@ -22,8 +22,11 @@ public class CargaDeDatos implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
+        System.out.println("🔍 [CargaDeDatos] Verificando base de datos... Usuarios encontrados: " + usuarioRepo.count());
+        
         // Solo insertamos datos si la base está vacía (para no duplicar)
         if (usuarioRepo.count() == 0) {
+            System.out.println("📦 [CargaDeDatos] Base vacía, iniciando carga de datos de prueba...");
 
             // 1. CREAR UN CLIENTE (Para que tú pruebes el login)
             Usuario cliente = new Usuario();
@@ -126,7 +129,9 @@ public class CargaDeDatos implements CommandLineRunner {
             pago2.setDescripcion("Transferencia bancaria iniciada");
             pagoRepo.save(pago2);
 
-            System.out.println("✅ DATOS DE PRUEBA CARGADOS EXITOSAMENTE");
+            System.out.println("✅ DATOS DE PRUEBA CARGADOS EXITOSAMENTE - Usuario cliente ID: 1, Facturas: 3, Pagos: 2");
+        } else {
+            System.out.println("⚠️ [CargaDeDatos] Base de datos ya tiene " + usuarioRepo.count() + " usuarios. Saltando carga de datos.");
         }
     }
 }
