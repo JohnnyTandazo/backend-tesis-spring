@@ -19,6 +19,9 @@ public class PagoService {
     @Autowired
     private FacturaRepository facturaRepository;
 
+    @Autowired
+    private EnvioRepository envioRepository;
+
     /**
      * Obtener pagos de una factura
      */
@@ -77,6 +80,16 @@ public class PagoService {
         factura.setEstado("PAGADO");
         facturaRepository.save(factura);
         System.out.println("✅ Factura sincronizada: " + factura.getNumeroFactura() + " - Estado: " + factura.getEstado());
+
+        // ========================================
+        // NUEVO: Actualizar estado del Envío asociado
+        // ========================================
+        Envio envio = factura.getEnvio();
+        if (envio != null) {
+            envio.setEstado("EN_TRANSITO");
+            envioRepository.save(envio);
+            System.out.println("✅ Envío actualizado: ID=" + envio.getId() + " → EN_TRANSITO");
+        }
         
         return pagGuardado;
     }
