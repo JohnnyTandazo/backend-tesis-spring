@@ -35,4 +35,59 @@ public class Envio {
     @ManyToOne
     @JoinColumn(name = "usuario_id")
     private Usuario usuario;
+
+    // ========================================
+    // PATRÓN SNAPSHOT: Datos del Destinatario
+    // ========================================
+    // Captura histórica de la dirección de destino
+    // Permite auditoría y recuperación de información
+    // incluso si los datos de Dirección se modifican
+    
+    @Column(name = "destinatario_nombre")
+    private String destinatarioNombre;
+
+    @Column(name = "destinatario_ciudad")
+    private String destinatarioCiudad;
+
+    @Column(name = "destinatario_direccion", length = 500)
+    private String destinatarioDireccion;
+
+    @Column(name = "destinatario_telefono")
+    private String destinatarioTelefono;
+
+    // ========================================
+    // GETTERS Y SETTERS - SNAPSHOT DESTINATARIO
+    // ========================================
+
+    public String getDestinatarioNombre() {
+        return destinatarioNombre;
+    }
+
+    public void setDestinatarioNombre(String destinatarioNombre) {
+        this.destinatarioNombre = destinatarioNombre;
+    }
+
+    public String getDestinatarioCiudad() {
+        return destinatarioCiudad;
+    }
+
+    public void setDestinatarioCiudad(String destinatarioCiudad) {
+        this.destinatarioCiudad = destinatarioCiudad;
+    }
+
+    public String getDestinatarioDireccion() {
+        return destinatarioDireccion;
+    }
+
+    public void setDestinatarioDireccion(String destinatarioDireccion) {
+        this.destinatarioDireccion = destinatarioDireccion;
+    }
+
+    public String getDestinatarioTelefono() {
+        return destinatarioTelefono;
+    }
+
+    public void setDestinatarioTelefono(String destinatarioTelefono) {
+        this.destinatarioTelefono = destinatarioTelefono;
+    }
 }
