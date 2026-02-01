@@ -82,13 +82,22 @@ public class PagoService {
         System.out.println("✅ Factura sincronizada: " + factura.getNumeroFactura() + " - Estado: " + factura.getEstado());
 
         // ========================================
-        // NUEVO: Actualizar estado del Envío asociado
+        // ACTUALIZACIÓN EXPLÍCITA Y SEGURA DEL ENVÍO
         // ========================================
-        Envio envio = factura.getEnvio();
-        if (envio != null) {
-            envio.setEstado("EN_TRANSITO");
-            envioRepository.save(envio);
-            System.out.println("✅ Envío actualizado: ID=" + envio.getId() + " → EN_TRANSITO");
+        Long envioId = null;
+        if (factura.getEnvio() != null) {
+            envioId = factura.getEnvio().getId();
+        } else if (factura.getEnvioId() != null) {
+            envioId = factura.getEnvioId();
+        }
+
+        if (envioId != null) {
+            Envio envio = envioRepository.findById(envioId).orElse(null);
+            if (envio != null) {
+                System.out.println("ACTUALIZANDO ENVÍO " + envioId + " A EN_TRANSITO");
+                envio.setEstado("EN_TRANSITO");
+                envioRepository.save(envio);
+            }
         }
         
         return pagGuardado;
