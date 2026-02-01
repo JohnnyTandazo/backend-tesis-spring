@@ -40,6 +40,7 @@ public class PagoService {
 
     /**
      * Registrar un nuevo pago (multipart/form-data)
+     * CON AUDITORÍA COMPLETA Y DEBUG LOGS
      */
     public Pago registrarPago(Long facturaId,
                               Double monto,
@@ -51,6 +52,10 @@ public class PagoService {
         // Buscar la factura
         Factura factura = facturaRepository.findById(facturaId)
             .orElseThrow(() -> new RuntimeException("Factura no encontrada"));
+        
+        System.out.println("DEBUG: Factura encontrada - ID: " + factura.getId() + 
+                         ", Estado: " + factura.getEstado() + 
+                         ", Monto: " + factura.getMonto());
         
         // Validar que el monto no exceda la factura
         if (monto > factura.getMonto()) {
@@ -72,25 +77,56 @@ public class PagoService {
         System.out.println("✅ Pago registrado con ID: " + pagGuardado.getId());
         
         // ========================================
-        // SINCRONIZACIÓN SIMPLIFICADA (DEMO)
+        // ACTUALIZACIÓN DE FACTURA A PAGADO
         // ========================================
-        System.out.println("📋 [SINCRONIZACIÓN] Marcando factura como PAGADO...");
+        System.out.println("📋 [FACTURA] Marcando factura como PAGADO...");
         
-        // En demo, cualquier pago registrado saca la factura de pendientes
         factura.setEstado("PAGADO");
         facturaRepository.save(factura);
         System.out.println("✅ Factura sincronizada: " + factura.getNumeroFactura() + " - Estado: " + factura.getEstado());
 
         // ========================================
-        // ACTUALIZACIÓN DIRECTA DEL ENVÍO EN BD (INFALIBLE)
+        // INICIO ACTUALIZACIÓN AUTOMÁTICA DE ENVÍO
         // ========================================
+        System.out.println("\n--- INICIO ACTUALIZACIÓN AUTOMÁTICA DE ENVÍO ---");
+        Long idEnvioAActualizar = null;
+
+        // INTENTO 1: Obtener por objeto relación @ManyToOne
         if (factura.getEnvio() != null) {
-            Long envioId = factura.getEnvio().getId();
-            System.out.println("🚚 [ENVÍO] Actualizando Envío ID: " + envioId + " a EN_TRANSITO");
-            envioRepository.actualizarEstado(envioId, "EN_TRANSITO");
-        } else {
-            System.out.println("⚠️ [ADVERTENCIA] Factura sin Envío asociado.");
+            idEnvioAActualizar = factura.getEnvio().getId();
+            System.out.println("✓ DEBUG: Envio encontrado por objeto. ID: " + idEnvioAActualizar);
+        } 
+        // INTENTO 2: Obtener por ID directo (campo envio_id)
+        else if (factura.getEnvioId() != null) {
+            idEnvioAActualizar = factura.getEnvioId();
+            System.out.println("✓ DEBUG: Envio encontrado por ID directo. ID: " + idEnvioAActualizar);
+        } 
+        // ERROR CRÍTICO
+        else {
+            System.out.println("❌ ERROR CRÍTICO: La factura " + factura.getId() + 
+                             " no tiene envío asociado (ambos nulos).");
         }
+
+        // Ejecutar actualización si tenemos ID
+        if (idEnvioAActualizar != null) {
+            System.out.println("\n📤 Intentando actualizar envío con ID: " + idEnvioAActualizar);
+            
+            Envio envio = envioRepository.findById(idEnvioAActualizar).orElse(null);
+            
+            if (envio != null) {
+                System.out.println("   → Envio encontrado en BD. Estado actual: " + envio.getEstado());
+                
+                envio.setEstado("EN_TRANSITO");
+                envioRepository.save(envio);
+                
+                System.out.println("   ✓ ÉXITO: Envío " + idEnvioAActualizar + 
+                                 " actualizado a EN_TRANSITO.");
+            } else {
+                System.out.println("   ❌ ERROR: No existe envío con ID " + idEnvioAActualizar + 
+                                 " en la BD.");
+            }
+        }
+        System.out.println("--------------------------------------------------\n");
         
         return pagGuardado;
     }
