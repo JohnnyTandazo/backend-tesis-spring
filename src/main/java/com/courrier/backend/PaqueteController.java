@@ -184,10 +184,24 @@ public class PaqueteController {
         // ════════════════════════════════════════════════════════════
         System.out.println("\n📋 [AUTO-FACTURACIÓN] Verificando si se debe generar factura...");
         
-        if (paqueteActualizado.getPrecio() != null && paqueteActualizado.getPrecio() > 0) {
-            System.out.println("   ✓ Precio detectado: $" + paqueteActualizado.getPrecio());
+        // ⚠️ REGLA DE ORO: SIEMPRE calcular el costo basado en PESO, NUNCA usar valorDeclarado
+        if (paqueteActualizado.getPesoLibras() != null && paqueteActualizado.getPesoLibras() > 0) {
             
-            // Verificar si ya existe factura para este paquete (evitar duplicados)
+            // ════════════════════════════════════════════════════════════
+            // 🧮 CÁLCULO OBLIGATORIO DEL COSTO DE ENVÍO
+            // ════════════════════════════════════════════════════════════
+            Double tarifaBase = 10.00;
+            Double costoPorLibra = 2.50;
+            Double costoCalculado = tarifaBase + (paqueteActualizado.getPesoLibras() * costoPorLibra);
+            
+            System.out.println("\n   🧮 [CÁLCULO DE COSTO DE ENVÍO]");
+            System.out.println("      • Tarifa Base: $" + tarifaBase);
+            System.out.println("      • Peso: " + paqueteActualizado.getPesoLibras() + " lbs");
+            System.out.println("      • Costo por Libra: $" + costoPorLibra);
+            System.out.println("      • COSTO DE ENVÍO: $" + String.format("%.2f", costoCalculado));
+            System.out.println("      ⚠️ (NUNCA se usa valorDeclarado para facturación)\n");
+            
+            // Verificar si ya existe factura para este paquete
             String descripcionBusqueda = "Importación " + paqueteActualizado.getTrackingNumber();
             List<Factura> facturasExistentes = facturaRepo.findAll().stream()
                 .filter(f -> descripcionBusqueda.equals(f.getDescripcion()))
@@ -198,15 +212,10 @@ public class PaqueteController {
                 System.out.println("   🔄 Creando factura automática...");
                 
                 // ════════════════════════════════════════════════════════════
-                // ⚠️ CRÍTICO: La factura debe cobrar el COSTO DEL FLETE,
-                //            NO el valor declarado del producto
+                // ✅ CREAR NUEVA FACTURA CON COSTO CALCULADO
                 // ════════════════════════════════════════════════════════════
-                // CORRECTO: paquete.getPrecio() → Costo del servicio de courier
-                // INCORRECTO: paquete.getValorDeclarado() → Valor del producto
-                
-                // Crear nueva factura
                 Factura factura = new Factura();
-                factura.setMonto(paqueteActualizado.getPrecio());  // ← COSTO DEL FLETE, NO DEL PRODUCTO
+                factura.setMonto(costoCalculado);  // ← SOLO COSTO DEL FLETE CALCULADO
                 factura.setEstado("PENDIENTE");
                 factura.setDescripcion("Importación " + paqueteActualizado.getTrackingNumber());
                 factura.setUsuario(paqueteActualizado.getUsuario());
@@ -220,13 +229,34 @@ public class PaqueteController {
                 System.out.println("   ✅ Factura generada automáticamente:");
                 System.out.println("      • ID: " + facturaGuardada.getId());
                 System.out.println("      • Número: " + facturaGuardada.getNumeroFactura());
-                System.out.println("      • Monto: $" + facturaGuardada.getMonto());
+                System.out.println("      • Monto: $" + String.format("%.2f", facturaGuardada.getMonto()));
                 System.out.println("      • Usuario: " + facturaGuardada.getUsuario().getNombre());
                 System.out.println("      • Estado: " + facturaGuardada.getEstado());
-                System.out.println("   💰 FACTURA AUTO-GENERADA: $" + facturaGuardada.getMonto());
+                System.out.println("   💰 FACTURA AUTO-GENERADA: $" + String.format("%.2f", facturaGuardada.getMonto()));
+                
             } else {
-                System.out.println("   ⚠️ Ya existe factura para este paquete (ID: " + 
-                                 facturasExistentes.get(0).getId() + ") - Se omite creación");
+                // ════════════════════════════════════════════════════════════
+                // 🔧 CORRECCIÓN RETROACTIVA: Verificar si factura existente
+                //    tiene el monto INCORRECTO (valorDeclarado en lugar de costo)
+                // ════════════════════════════════════════════════════════════
+                Factura facturaExistente = facturasExistentes.get(0);
+                System.out.println("   ⚠️ Ya existe factura para este paquete (ID: " + facturaExistente.getId() + ")");
+                System.out.println("      • Monto actual: $" + facturaExistente.getMonto());
+                System.out.println("      • Costo correcto: $" + String.format("%.2f", costoCalculado));
+                
+                // Si el monto actual es diferente al costo calculado, corregirlo
+                if (Math.abs(facturaExistente.getMonto() - costoCalculado) > 0.01) {
+                    System.out.println("      🔧 Detectado monto INCORRECTO - Corrigiendo...");
+                    
+                    facturaExistente.setMonto(costoCalculado);
+                    Factura facturaCorregida = facturaRepo.save(facturaExistente);
+                    
+                    System.out.println("      ✅ Factura CORREGIDA:");
+                    System.out.println("         • Nuevo monto: $" + String.format("%.2f", facturaCorregida.getMonto()));
+                    System.out.println("      💰 FACTURA ACTUALIZADA: $" + String.format("%.2f", facturaCorregida.getMonto()));
+                } else {
+                    System.out.println("      ✅ Monto ya es correcto - No requiere cambios");
+                }
             }
         } else {
             System.out.println("   ℹ️ Precio no asignado o es $0.00 - No se genera factura");
