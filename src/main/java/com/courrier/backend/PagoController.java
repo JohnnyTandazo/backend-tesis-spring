@@ -103,14 +103,48 @@ public class PagoController {
     }
 
     /**
-     * PUT /api/pagos/{id}/estado
-     * Actualizar estado de un pago (PENDIENTE -> CONFIRMADO)
+     * PUT /api/pagos/{id}
+     * Actualizar estado de un pago (JSON body)
+     * Body: { "estado": "APROBADO" }
+     * 
+     * CRÍTICO: Si estado = APROBADO, la factura asociada se marcará como PAGADA
      */
+    @PutMapping("/{id}")
+    public ResponseEntity<Pago> actualizarPago(
+            @PathVariable Long id,
+            @RequestBody ActualizarPagoRequest request) {
+        System.out.println("🔄 [PUT /api/pagos/" + id + "] Nuevo estado: " + request.getEstado());
+        
+        try {
+            if (request.getEstado() == null || request.getEstado().trim().isEmpty()) {
+                System.out.println("❌ Error: El campo 'estado' no puede estar vacío");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            }
+            
+            Pago actualizado = pagoService.actualizarEstado(id, request.getEstado());
+            System.out.println("✅ Pago actualizado exitosamente");
+            return ResponseEntity.ok(actualizado);
+        } catch (RuntimeException e) {
+            System.out.println("❌ Error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Exception e) {
+            System.out.println("❌ Error inesperado: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * PUT /api/pagos/{id}/estado
+     * Actualizar estado de un pago (Query Parameter)
+     * Deprecated: Usar PUT /api/pagos/{id} con JSON body
+     */
+    @Deprecated
     @PutMapping("/{id}/estado")
-    public ResponseEntity<Pago> actualizarEstado(
+    public ResponseEntity<Pago> actualizarEstadoLegacy(
             @PathVariable Long id,
             @RequestParam String nuevoEstado) {
-        System.out.println("🔄 [PUT /api/pagos/" + id + "/estado] Estado: " + nuevoEstado);
+        System.out.println("⚠️ [PUT /api/pagos/" + id + "/estado] DEPRECATED - Usar PUT /api/pagos/{id} con JSON");
         
         try {
             Pago actualizado = pagoService.actualizarEstado(id, nuevoEstado);

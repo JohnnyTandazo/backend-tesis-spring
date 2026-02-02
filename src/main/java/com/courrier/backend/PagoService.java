@@ -182,20 +182,54 @@ public class PagoService {
 
     /**
      * Actualizar estado de un pago
+     * CRÍTICO: Si el nuevo estado es APROBADO, actualiza la factura a PAGADA
      */
     public Pago actualizarEstado(Long id, String nuevoEstado) {
+        System.out.println("\n╔════════════════════════════════════════════════════════╗");
+        System.out.println("║ ACTUALIZAR ESTADO DE PAGO (OPERADOR)                   ║");
+        System.out.println("╚════════════════════════════════════════════════════════╝");
         System.out.println("🔄 [PagoService] Actualizando estado de pago ID: " + id + " a: " + nuevoEstado);
         
         return pagoRepository.findById(id).map(pago -> {
+            System.out.println("\n📍 PASO 1: Obtener pago actual");
+            System.out.println("   ✓ Pago ID: " + pago.getId());
+            System.out.println("   ✓ Estado anterior: " + pago.getEstado());
+            System.out.println("   ✓ Monto: $" + pago.getMonto());
+            System.out.println("   ✓ Factura ID: " + pago.getFacturaId());
+            
+            System.out.println("\n📍 PASO 2: Actualizar estado del pago");
             pago.setEstado(nuevoEstado);
             Pago actualizado = pagoRepository.save(pago);
+            System.out.println("   ✓ Estado actualizado a: " + actualizado.getEstado());
             
-            // Si el pago fue confirmado, actualizar factura
-            if ("CONFIRMADO".equals(nuevoEstado) && pago.getMonto() >= pago.getFactura().getMonto()) {
+            // CRÍTICO: Si el estado es APROBADO, actualizar factura a PAGADA
+            System.out.println("\n📍 PASO 3: Verificar si necesita sincronización con Factura");
+            if ("APROBADO".equals(nuevoEstado)) {
+                System.out.println("   🎯 APROBADO detectado - Actualizando factura...");
+                
                 Factura factura = pago.getFactura();
-                factura.setEstado("PAGADA");
-                facturaRepository.save(factura);
+                if (factura != null) {
+                    System.out.println("   ✓ Factura encontrada:");
+                    System.out.println("     • ID: " + factura.getId());
+                    System.out.println("     • Estado anterior: " + factura.getEstado());
+                    System.out.println("     • Número: " + factura.getNumeroFactura());
+                    
+                    factura.setEstado("PAGADA");
+                    Factura facturaActualizada = facturaRepository.save(factura);
+                    
+                    System.out.println("   ✓ Factura actualizada:");
+                    System.out.println("     • Estado nuevo: " + facturaActualizada.getEstado());
+                    System.out.println("     • ✅ Deuda liberada para el cliente");
+                } else {
+                    System.out.println("   ⚠️ ADVERTENCIA: Factura no cargada, integridad referencial en riesgo");
+                }
+            } else {
+                System.out.println("   ℹ️ Estado '" + nuevoEstado + "' no requiere sincronización");
             }
+            
+            System.out.println("\n╔════════════════════════════════════════════════════════╗");
+            System.out.println("║ FIN: ACTUALIZACIÓN COMPLETADA                         ║");
+            System.out.println("╚════════════════════════════════════════════════════════╝\n");
             
             return actualizado;
         }).orElseThrow(() -> new RuntimeException("Pago no encontrado con ID: " + id));
