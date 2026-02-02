@@ -148,10 +148,26 @@ public class PaqueteController {
             System.out.println("   Peso actualizado a: " + paquete.getPesoLibras() + " libras");
         }
 
-        // 3. Actualizar Precio/Valor (Si el operador lo corrige)
+        // 3. Actualizar Precio/Valor (Manual o Auto-calculado)
         if (payload.get("precio") != null) {
+            // CASO 1: Operador envió un precio MANUAL
             paquete.setPrecio(Double.valueOf(payload.get("precio").toString()));
-            System.out.println("   Precio actualizado a: " + paquete.getPrecio());
+            System.out.println("   💵 Precio MANUAL asignado: $" + paquete.getPrecio());
+        } else if (paquete.getPesoLibras() != null && paquete.getPesoLibras() > 0) {
+            // CASO 2: AUTO-CÁLCULO basado en PESO (Tarifa de flete)
+            System.out.println("   🧮 [CALCULADORA AUTOMÁTICA] Calculando precio de flete...");
+            
+            Double tarifaBase = 10.00;      // Tarifa base por envío
+            Double costoPorLibra = 2.50;    // $2.50 por libra
+            Double precioEnvio = tarifaBase + (paquete.getPesoLibras() * costoPorLibra);
+            
+            paquete.setPrecio(precioEnvio);
+            
+            System.out.println("      • Tarifa Base: $" + tarifaBase);
+            System.out.println("      • Peso: " + paquete.getPesoLibras() + " lbs");
+            System.out.println("      • Costo por Libra: $" + costoPorLibra);
+            System.out.println("      • TOTAL CALCULADO: $" + String.format("%.2f", precioEnvio));
+            System.out.println("   ✅ Precio AUTO-CALCULADO: $" + String.format("%.2f", precioEnvio));
         }
 
         // 4. Actualizar Categoría (A, B, C, etc.)
@@ -181,9 +197,16 @@ public class PaqueteController {
                 System.out.println("   ℹ️ No existe factura previa para este paquete");
                 System.out.println("   🔄 Creando factura automática...");
                 
+                // ════════════════════════════════════════════════════════════
+                // ⚠️ CRÍTICO: La factura debe cobrar el COSTO DEL FLETE,
+                //            NO el valor declarado del producto
+                // ════════════════════════════════════════════════════════════
+                // CORRECTO: paquete.getPrecio() → Costo del servicio de courier
+                // INCORRECTO: paquete.getValorDeclarado() → Valor del producto
+                
                 // Crear nueva factura
                 Factura factura = new Factura();
-                factura.setMonto(paqueteActualizado.getPrecio());
+                factura.setMonto(paqueteActualizado.getPrecio());  // ← COSTO DEL FLETE, NO DEL PRODUCTO
                 factura.setEstado("PENDIENTE");
                 factura.setDescripcion("Importación " + paqueteActualizado.getTrackingNumber());
                 factura.setUsuario(paqueteActualizado.getUsuario());
