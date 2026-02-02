@@ -17,6 +17,34 @@ public class PaqueteController {
     @Autowired
     private UsuarioRepository usuarioRepo;
 
+    /**
+     * GET /api/paquetes/todos
+     * Obtener TODOS los paquetes (ADMIN ENDPOINT)
+     * Para la Torre de Control - ordenados por fecha
+     */
+    @GetMapping("/todos")
+    public List<Paquete> obtenerTodos() {
+        System.out.println("📦 [GET /api/paquetes/todos] ADMIN - Obteniendo TODOS los paquetes...");
+        
+        try {
+            List<Paquete> todos = paqueteRepo.findAll();
+            System.out.println("✅ Se encontraron " + todos.size() + " paquetes en total");
+            
+            if (!todos.isEmpty()) {
+                System.out.println("   📊 Desglose por estado:");
+                todos.stream()
+                    .collect(java.util.stream.Collectors.groupingBy(Paquete::getEstado, java.util.stream.Collectors.counting()))
+                    .forEach((estado, cantidad) -> System.out.println("     → " + estado + ": " + cantidad));
+            }
+            
+            return todos;
+        } catch (Exception e) {
+            System.out.println("❌ Error obteniendo paquetes: " + e.getMessage());
+            e.printStackTrace();
+            return List.of();
+        }
+    }
+
     // 1. Ver TODOS los paquetes (Para el Admin u Operador)
     @GetMapping
     public List<Paquete> listarPaquetes(@RequestParam(value = "usuarioId", required = false) Long usuarioId) {

@@ -45,6 +45,35 @@ public class PagoService {
     }
 
     /**
+     * Obtener todos los pagos PENDIENTES (ADMIN/CAJERO)
+     * Sin filtro de usuario - devuelve la lista completa
+     */
+    public List<Pago> obtenerPendientes() {
+        System.out.println("\n╔════════════════════════════════════════════════════════╗");
+        System.out.println("║ REPORTE: PAGOS PENDIENTES (ADMIN)                      ║");
+        System.out.println("╚════════════════════════════════════════════════════════╝");
+        System.out.println("💳 [PagoService] Obteniendo TODOS los pagos PENDIENTES...");
+        
+        List<Pago> pagosPendientes = pagoRepository.findByEstado("PENDIENTE", Sort.by(Sort.Direction.DESC, "fecha"));
+        
+        System.out.println("   ✅ Se encontraron " + pagosPendientes.size() + " pagos pendientes");
+        if (!pagosPendientes.isEmpty()) {
+            double totalPendiente = pagosPendientes.stream().mapToDouble(Pago::getMonto).sum();
+            System.out.println("   💰 Total pendiente: $" + String.format("%.2f", totalPendiente));
+            
+            pagosPendientes.forEach(p -> {
+                System.out.println("     → Pago ID: " + p.getId() + " | Factura: " + p.getFacturaId() + 
+                                 " | Monto: $" + p.getMonto() + " | Usuario: " + 
+                                 (p.getFactura() != null && p.getFactura().getUsuario() != null ? 
+                                  p.getFactura().getUsuario().getNombre() : "N/A"));
+            });
+        }
+        
+        System.out.println("╚════════════════════════════════════════════════════════╝\n");
+        return pagosPendientes;
+    }
+
+    /**
      * Obtener un pago por ID
      */
     public Optional<Pago> obtenerPorId(Long id) {

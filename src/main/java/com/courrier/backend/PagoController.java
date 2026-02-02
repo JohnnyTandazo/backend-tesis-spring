@@ -24,6 +24,26 @@ public class PagoController {
     private FacturaService facturaService;
 
     /**
+     * GET /api/pagos/pendientes
+     * Obtener TODOS los pagos PENDIENTES (sin filtro de usuario)
+     * ADMIN ENDPOINT: Cajero accede a esta lista
+     */
+    @GetMapping("/pendientes")
+    public ResponseEntity<List<Pago>> obtenerPendientes() {
+        System.out.println("💳 [GET /api/pagos/pendientes] PETICIÓN DEL ADMIN - Listando pagos pendientes...");
+        
+        try {
+            List<Pago> pagosPendientes = pagoService.obtenerPendientes();
+            System.out.println("✅ Se devuelven " + pagosPendientes.size() + " pagos pendientes");
+            return ResponseEntity.ok(pagosPendientes);
+        } catch (Exception e) {
+            System.out.println("❌ Error obteniendo pagos pendientes: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.ok(List.of());
+        }
+    }
+
+    /**
      * GET /api/pagos?usuarioId={id}
      * Obtener historial de pagos del usuario (query directo con JOIN)
      */

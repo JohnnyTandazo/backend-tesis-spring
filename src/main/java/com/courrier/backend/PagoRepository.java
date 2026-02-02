@@ -30,5 +30,11 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
            "WHERE f.usuario.id = :usuarioId " +
            "ORDER BY p.fecha DESC")
     List<Pago> findByUsuarioId(@Param("usuarioId") Long usuarioId);
+    
+    /**
+     * Obtener todos los pagos con estado específico (ADMIN)
+     * Ordenado por fecha (más recientes primero)
+     */
+    List<Pago> findByEstado(String estado, Sort sort);
 }
 
