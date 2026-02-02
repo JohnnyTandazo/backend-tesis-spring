@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Guía de Remisión</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            font-size: 11pt;
+            color: #000;
+            padding: 20px;
+        }
+        
+        .header {
+            border: 1px solid #000;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: table;
+            width: 100%;
+        }
+        
+        .header-left {
+            display: table-cell;
+            width: 60%;
+            vertical-align: top;
+        }
+        
+        .header-right {
+            display: table-cell;
+            width: 40%;
+            vertical-align: top;
+            text-align: right;
+        }
+        
+        .logo {
+            font-size: 24pt;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .ruc {
+            font-size: 10pt;
+            color: #666;
+        }
+        
+        .barcode {
+            font-family: 'Courier New', monospace;
+            font-size: 18pt;
+            letter-spacing: 2px;
+            border: 1px solid #000;
+            padding: 10px;
+            margin-top: 10px;
+            background: #f9f9f9;
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 16pt;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+        }
+        
+        .info-section {
+            margin-bottom: 20px;
+            display: table;
+            width: 100%;
+        }
+        
+        .col {
+            display: table-cell;
+            width: 50%;
+            padding: 10px;
+            border: 1px solid #000;
+            vertical-align: top;
+        }
+        
+        .col h3 {
+            font-size: 12pt;
+            margin-bottom: 10px;
+            color: #333;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+        }
+        
+        .field {
+            margin-bottom: 8px;
+        }
+        
+        .field strong {
+            display: inline-block;
+            width: 120px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        th {
+            background-color: #000;
+            color: #fff;
+            padding: 10px;
+            text-align: left;
+            font-size: 11pt;
+            border: 1px solid #000;
+        }
+        
+        td {
+            padding: 8px;
+            border: 1px solid #000;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 9pt;
+            color: #666;
+            border-top: 1px solid #ccc;
+            padding-top: 10px;
+        }
+        
+        .metadata {
+            font-size: 9pt;
+            color: #999;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- CABECERA -->
+    <div class="header">
+        <div class="header-left">
+            <div class="logo">COURIER TESIS</div>
+            <div class="ruc">RUC: 1234567890001</div>
+            <div class="ruc">Dirección: Av. Principal 123, Quito, Ecuador</div>
+        </div>
+        <div class="header-right">
+            <div class="barcode" th:text="${numeroTracking}">NAC-123456</div>
+        </div>
+    </div>
+
+    <!-- TÍTULO -->
+    <h1>Guía de Remisión Nacional</h1>
+
+    <!-- DATOS DEL ENVÍO -->
+    <div class="info-section">
+        <div class="col">
+            <h3>📦 REMITENTE</h3>
+            <div class="field"><strong>Usuario:</strong> <span th:text="${usuario}">Juan Pérez</span></div>
+            <div class="field"><strong>Teléfono:</strong> <span th:text="${telefono}">0999999999</span></div>
+            <div class="field"><strong>Fecha Envío:</strong> <span th:text="${fechaCreacion}">2026-02-01</span></div>
+        </div>
+        
+        <div class="col">
+            <h3>🏠 DESTINATARIO</h3>
+            <div class="field"><strong>Nombre:</strong> <span th:text="${destinatarioNombre}">María González</span></div>
+            <div class="field"><strong>Ciudad:</strong> <span th:text="${destinatarioCiudad}">Guayaquil</span></div>
+            <div class="field"><strong>Dirección:</strong> <span th:text="${destinatarioDireccion}">Calle 10 y Av. 9</span></div>
+            <div class="field"><strong>Teléfono:</strong> <span th:text="${destinatarioTelefono}">0987654321</span></div>
+        </div>
+    </div>
+
+    <!-- TABLA DE PAQUETES -->
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 60%;">Descripción</th>
+                <th style="width: 20%;">Peso (lbs)</th>
+                <th style="width: 20%;">Categoría</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td th:text="${descripcion}">Laptop HP + Mouse</td>
+                <td th:text="${pesoLibras} + ' lbs'">4.5 lbs</td>
+                <td th:text="${categoria}">A</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- FOOTER -->
+    <div class="footer">
+        <p><strong>COURIER TESIS</strong> - Envíos Nacionales e Internacionales</p>
+        <p>Teléfono: (02) 123-4567 | Email: info@courriertesis.com</p>
+    </div>
+
+    <!-- METADATA -->
+    <div class="metadata">
+        <p>Estado: <span th:text="${estado}">EN_TRANSITO</span></p>
+        <p>Documento generado el <span th:text="${#dates.format(#dates.createNow(), 'dd/MM/yyyy HH:mm')}">01/02/2026 14:30</span></p>
+    </div>
+</body>
+</html>

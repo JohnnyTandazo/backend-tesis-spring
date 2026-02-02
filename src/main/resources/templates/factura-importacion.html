@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Factura de Importación</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            font-size: 11pt;
+            color: #2c3e50;
+            padding: 30px;
+            background: #fff;
+        }
+        
+        .header {
+            display: table;
+            width: 100%;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #2c5aa0;
+        }
+        
+        .header-left {
+            display: table-cell;
+            width: 50%;
+            vertical-align: middle;
+        }
+        
+        .header-right {
+            display: table-cell;
+            width: 50%;
+            vertical-align: middle;
+            text-align: right;
+        }
+        
+        .logo {
+            font-size: 26pt;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 5px;
+        }
+        
+        .company-info {
+            font-size: 9pt;
+            color: #7f8c8d;
+            line-height: 1.5;
+        }
+        
+        .invoice-title {
+            font-size: 28pt;
+            font-weight: bold;
+            color: #2c5aa0;
+            text-transform: uppercase;
+        }
+        
+        .invoice-number {
+            font-size: 14pt;
+            color: #34495e;
+            margin-top: 5px;
+        }
+        
+        .client-section {
+            background: #ecf0f1;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2c5aa0;
+        }
+        
+        .client-section h3 {
+            font-size: 13pt;
+            color: #2c5aa0;
+            margin-bottom: 10px;
+        }
+        
+        .client-info {
+            font-size: 10pt;
+            line-height: 1.8;
+        }
+        
+        .client-info strong {
+            display: inline-block;
+            width: 150px;
+            color: #34495e;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        th {
+            background: linear-gradient(to bottom, #2c5aa0, #1e3d73);
+            color: #fff;
+            padding: 12px 10px;
+            text-align: left;
+            font-size: 11pt;
+            font-weight: bold;
+            border: none;
+        }
+        
+        th.text-right {
+            text-align: right;
+        }
+        
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            font-size: 10pt;
+        }
+        
+        td.text-right {
+            text-align: right;
+        }
+        
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .totals-section {
+            margin-top: 30px;
+            float: right;
+            width: 350px;
+        }
+        
+        .totals-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .totals-table td {
+            padding: 8px 15px;
+            border: none;
+        }
+        
+        .totals-table .label {
+            text-align: right;
+            font-size: 11pt;
+            color: #7f8c8d;
+        }
+        
+        .totals-table .value {
+            text-align: right;
+            font-size: 12pt;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .totals-table .total-row {
+            background: #2c5aa0;
+            color: #fff;
+        }
+        
+        .totals-table .total-row .label,
+        .totals-table .total-row .value {
+            color: #fff;
+            font-size: 14pt;
+        }
+        
+        .footer {
+            clear: both;
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 2px solid #ecf0f1;
+            text-align: center;
+        }
+        
+        .footer p {
+            font-size: 12pt;
+            color: #2c5aa0;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .footer .contact {
+            font-size: 9pt;
+            color: #7f8c8d;
+            margin-top: 10px;
+        }
+        
+        .metadata {
+            font-size: 9pt;
+            color: #95a5a6;
+            margin-top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <!-- CABECERA -->
+    <div class="header">
+        <div class="header-left">
+            <div class="logo">COURIER TESIS</div>
+            <div class="company-info">
+                <strong>RUC:</strong> 1234567890001<br/>
+                <strong>Dirección:</strong> Av. Principal 123, Quito, Ecuador<br/>
+                <strong>Teléfono:</strong> (02) 123-4567<br/>
+                <strong>Email:</strong> internacional@courriertesis.com
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="invoice-title">FACTURA</div>
+            <div class="invoice-title">COMERCIAL</div>
+            <div class="invoice-number"># <span th:text="${numeroFactura}">FCT-00123</span></div>
+        </div>
+    </div>
+
+    <!-- INFORMACIÓN DEL CLIENTE -->
+    <div class="client-section">
+        <h3>DATOS DEL CLIENTE</h3>
+        <div class="client-info">
+            <strong>Cliente:</strong> <span th:text="${clienteNombre}">Juan Pérez</span><br/>
+            <strong>Dirección Miami:</strong> <span th:text="${direccionMiami}">1234 NW 87th Ave, Miami, FL 33172</span><br/>
+            <strong>Locker:</strong> <span th:text="${locker}">USA-1234</span><br/>
+            <strong>Fecha de Factura:</strong> <span th:text="${fechaEmision}">2026-02-01</span>
+        </div>
+    </div>
+
+    <!-- TABLA DE ITEMS -->
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 50%;">Descripción del Artículo</th>
+                <th style="width: 15%;" class="text-right">Peso (lbs)</th>
+                <th style="width: 15%;" class="text-right">Precio Unit.</th>
+                <th style="width: 20%;" class="text-right">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="item : ${items}">
+                <td th:text="${item.descripcion}">Laptop Dell XPS 15</td>
+                <td class="text-right" th:text="${item.peso} + ' lbs'">5.0 lbs</td>
+                <td class="text-right" th:text="'$' + ${#numbers.formatDecimal(item.precioUnitario, 1, 2)}">$15.00</td>
+                <td class="text-right" th:text="'$' + ${#numbers.formatDecimal(item.total, 1, 2)}">$75.00</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- TOTALES -->
+    <div class="totals-section">
+        <table class="totals-table">
+            <tr>
+                <td class="label">Subtotal:</td>
+                <td class="value" th:text="'$' + ${#numbers.formatDecimal(subtotal, 1, 2)}">$75.00</td>
+            </tr>
+            <tr>
+                <td class="label">Impuestos (Aranceles):</td>
+                <td class="value" th:text="'$' + ${#numbers.formatDecimal(impuestos, 1, 2)}">$15.00</td>
+            </tr>
+            <tr class="total-row">
+                <td class="label">TOTAL:</td>
+                <td class="value" th:text="'$' + ${#numbers.formatDecimal(total, 1, 2)}">$90.00</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+        <p>Gracias por confiar en nosotros</p>
+        <div class="contact">
+            COURIER TESIS - Importaciones desde USA<br/>
+            Teléfono: (02) 123-4567 | WhatsApp: +593 99 999 9999<br/>
+            Email: internacional@courriertesis.com | Web: www.courriertesis.com
+        </div>
+    </div>
+
+    <!-- METADATA -->
+    <div class="metadata">
+        <p>Estado: <span th:text="${estado}">PENDIENTE</span></p>
+        <p>Documento generado el <span th:text="${#dates.format(#dates.createNow(), 'dd/MM/yyyy HH:mm')}">01/02/2026 15:30</span></p>
+    </div>
+</body>
+</html>
