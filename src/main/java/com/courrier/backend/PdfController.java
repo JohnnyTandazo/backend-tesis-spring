@@ -66,7 +66,7 @@ public class PdfController {
             // Configurar headers
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_PDF);
-            headers.setContentDispositionFormData("inline", "guia-remision-" + envio.getNumeroTracking() + ".pdf");
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"guia-remision-" + envio.getNumeroTracking() + ".pdf\"");
             headers.setContentLength(pdfBytes.length);
 
             System.out.println("🎉 [PdfController] PDF generado correctamente (" + pdfBytes.length + " bytes)");
@@ -147,7 +147,7 @@ public class PdfController {
             // Configurar headers
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_PDF);
-            headers.setContentDispositionFormData("inline", "factura-" + facturaId + ".pdf");
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"factura-" + facturaId + ".pdf\"");
             headers.setContentLength(pdfBytes.length);
 
             System.out.println("🎉 [PdfController] PDF generado correctamente (" + pdfBytes.length + " bytes)");
