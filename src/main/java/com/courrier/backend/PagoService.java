@@ -128,82 +128,40 @@ public class PagoService {
         pago.setMetodoPago(metodoPago);
         pago.setReferencia(referencia);
         pago.setComprobante(comprobanteNombre);
-        pago.setEstado("CONFIRMADO");
+        
+        // ════════════════════════════════════════════════════════════
+        // 🔒 REGLA DE SEGURIDAD: Un pago nuevo SIEMPRE nace PENDIENTE
+        // ════════════════════════════════════════════════════════════
+        // NUNCA puede nacer como CONFIRMADO o APROBADO
+        // Requiere validación manual del operador en su dashboard
+        pago.setEstado("PENDIENTE");
+        System.out.println("   🔒 Estado FORZADO a: PENDIENTE (requiere validación del operador)");
         
         Pago pagGuardado = pagoRepository.save(pago);
         System.out.println("   ✓ Pago guardado con ID: " + pagGuardado.getId());
-        
-        // PASO 4: ACTUALIZAR FACTURA A PAGADO
-        System.out.println("\n📍 PASO 4: Actualizando factura a PAGADO...");
-        factura.setEstado("PAGADO");
-        Factura facturaActualizada = facturaRepository.save(factura);
-        System.out.println("   ✓ Factura actualizada. Estado: " + facturaActualizada.getEstado());
+        System.out.println("   ✓ Estado: " + pagGuardado.getEstado());
         
         // ════════════════════════════════════════════════════════════
-        // PASO 5: SINCRONIZAR ENVÍO - LÓGICA ROBUSTA Y SEGURA
+        // ⚠️ IMPORTANTE: La factura NO se marca como PAGADO aquí
         // ════════════════════════════════════════════════════════════
-        System.out.println("\n📍 PASO 5: Sincronizando estado del envío...");
-        System.out.println("   Intentando obtener ID del envío...");
+        // La factura solo cambiará a PAGADO cuando el operador
+        // APRUEBE el pago en su dashboard (PUT /api/pagos/{id})
+        System.out.println("\n📍 PASO 4: Factura mantiene estado actual (será actualizada al aprobar pago)");
+        System.out.println("   ℹ️ Factura ID: " + factura.getId() + " | Estado actual: " + factura.getEstado());
         
-        Long idEnvioAActualizar = null;
-        String metodoObtenccion = null;
-
-        // INTENTO 1: Por objeto relación @ManyToOne (si se cargó)
-        System.out.println("     → Verificando factura.getEnvio()...");
-        if (factura.getEnvio() != null) {
-            idEnvioAActualizar = factura.getEnvio().getId();
-            metodoObtenccion = "Objeto @ManyToOne";
-            System.out.println("     ✓ Envio encontrado por objeto relación. ID: " + idEnvioAActualizar);
-        } 
-        // INTENTO 2: Por ID directo (campo envio_id en BD)
-        else {
-            System.out.println("     → Verificando factura.getEnvioId()...");
-            if (factura.getEnvioId() != null) {
-                idEnvioAActualizar = factura.getEnvioId();
-                metodoObtenccion = "ID directo (envio_id)";
-                System.out.println("     ✓ Envio encontrado por ID directo. ID: " + idEnvioAActualizar);
-            }
-        }
-        
-        // VERIFICACIÓN CRÍTICA
-        if (idEnvioAActualizar == null) {
-            System.out.println("     ❌ ERROR CRÍTICO: La factura " + factura.getId() + 
-                             " NO tiene envío asociado.");
-            System.out.println("     ❌ Ambos campos son NULL: getEnvio() y getEnvioId()");
-            System.out.println("     ❌ Revisar BD: ¿Existe envio_id en tabla facturas?");
-        } else {
-            System.out.println("\n     📤 Obtenido por: " + metodoObtenccion);
-            System.out.println("     📤 Cargando envío fresco desde BD (SINCRONIZACIÓN)...");
-            
-            // CARGA FRESCA DEL ENVÍO DESDE BD
-            Optional<Envio> envioOpt = envioRepository.findById(idEnvioAActualizar);
-            
-            if (envioOpt.isPresent()) {
-                Envio envio = envioOpt.get();
-                System.out.println("     ✓ Envio encontrado en BD:");
-                System.out.println("       • ID: " + envio.getId());
-                System.out.println("       • Estado ANTES: " + envio.getEstado());
-                System.out.println("       • Tracking: " + envio.getNumeroTracking());
-                
-                // ACTUALIZAR ESTADO
-                System.out.println("     🔄 Cambiando estado a EN_TRANSITO...");
-                envio.setEstado("EN_TRANSITO");
-                
-                // GUARDAR EN BD
-                Envio envioActualizado = envioRepository.save(envio);
-                System.out.println("     ✓ Envio GUARDADO en BD:");
-                System.out.println("       • Estado DESPUÉS: " + envioActualizado.getEstado());
-                System.out.println("       • ✅ ÉXITO: Envío sincronizado correctamente");
-                
-            } else {
-                System.out.println("     ❌ ERROR: No existe envío con ID " + idEnvioAActualizar + " en la BD");
-                System.out.println("     ❌ Revisar integridad referencial: envios.id = " + idEnvioAActualizar);
-            }
-        }
+        // ════════════════════════════════════════════════════════════
+        // PASO 5: SINCRONIZACIÓN DE ENVÍO - DESACTIVADA
+        // ════════════════════════════════════════════════════════════
+        // ⚠️ El envío NO se actualiza aquí porque el pago está PENDIENTE
+        // El envío cambiará a EN_TRANSITO cuando el operador APRUEBE
+        // el pago en PUT /api/pagos/{id} con estado=APROBADO
+        System.out.println("\n📍 PASO 5: Sincronización de envío OMITIDA (pago pendiente de aprobación)");
+        System.out.println("   ℹ️ El envío se actualizará cuando el operador apruebe el pago");
         
         // FINALIZACIÓN
         System.out.println("\n╔════════════════════════════════════════════════════════╗");
         System.out.println("║ FIN: REGISTRO DE PAGO COMPLETADO                       ║");
+        System.out.println("║ Estado: PENDIENTE - Requiere validación del operador   ║");
         System.out.println("╚════════════════════════════════════════════════════════╝\n");
         
         return pagGuardado;
@@ -232,9 +190,9 @@ public class PagoService {
             System.out.println("   ✓ Estado actualizado a: " + actualizado.getEstado());
             
             // CRÍTICO: Si el estado es APROBADO, actualizar factura a PAGADA
-            System.out.println("\n📍 PASO 3: Verificar si necesita sincronización con Factura");
+            System.out.println("\n📍 PASO 3: Verificar si necesita sincronización con Factura y Envío");
             if ("APROBADO".equals(nuevoEstado)) {
-                System.out.println("   🎯 APROBADO detectado - Actualizando factura...");
+                System.out.println("   🎯 APROBADO detectado - Actualizando factura y envío...");
                 
                 Factura factura = pago.getFactura();
                 if (factura != null) {
@@ -249,6 +207,30 @@ public class PagoService {
                     System.out.println("   ✓ Factura actualizada:");
                     System.out.println("     • Estado nuevo: " + facturaActualizada.getEstado());
                     System.out.println("     • ✅ Deuda liberada para el cliente");
+                    
+                    // ════════════════════════════════════════════════════════════
+                    // SINCRONIZAR ENVÍO (si existe)
+                    // ════════════════════════════════════════════════════════════
+                    if (factura.getEnvioId() != null) {
+                        System.out.println("\n   📦 Sincronizando envío asociado...");
+                        Optional<Envio> envioOpt = envioRepository.findById(factura.getEnvioId());
+                        
+                        if (envioOpt.isPresent()) {
+                            Envio envio = envioOpt.get();
+                            System.out.println("     • Envío ID: " + envio.getId());
+                            System.out.println("     • Estado anterior: " + envio.getEstado());
+                            
+                            envio.setEstado("EN_TRANSITO");
+                            Envio envioActualizado = envioRepository.save(envio);
+                            
+                            System.out.println("     • Estado nuevo: " + envioActualizado.getEstado());
+                            System.out.println("     • ✅ Envío sincronizado correctamente");
+                        } else {
+                            System.out.println("     ⚠️ Envío no encontrado con ID: " + factura.getEnvioId());
+                        }
+                    } else {
+                        System.out.println("   ℹ️ Factura sin envío asociado (probablemente importación de paquete)");
+                    }
                 } else {
                     System.out.println("   ⚠️ ADVERTENCIA: Factura no cargada, integridad referencial en riesgo");
                 }
