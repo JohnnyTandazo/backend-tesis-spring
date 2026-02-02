@@ -25,37 +25,18 @@ public class PagoController {
 
     /**
      * GET /api/pagos?usuarioId={id}
-     * Obtener historial de pagos (pagos de todas las facturas del usuario)
+     * Obtener historial de pagos del usuario (query directo con JOIN)
      */
     @GetMapping
     public ResponseEntity<List<Pago>> obtenerHistorial(@RequestParam Long usuarioId) {
         System.out.println("💳 [GET /api/pagos] PETICIÓN RECIBIDA - Usuario: " + usuarioId);
         
         try {
-            List<Factura> facturas = facturaService.obtenerPorUsuario(usuarioId);
-            
-            if (facturas == null || facturas.isEmpty()) {
-                System.out.println("⚠️ Usuario no tiene facturas. Retornando lista vacía.");
-                return ResponseEntity.ok(List.of());
-            }
-            
-            List<Pago> todoPagos = facturas.stream()
-                .filter(f -> f != null && f.getId() != null)
-                .flatMap(factura -> {
-                    try {
-                        List<Pago> pagosFactura = pagoService.obtenerPorFactura(factura.getId());
-                        return (pagosFactura != null) ? pagosFactura.stream() : java.util.stream.Stream.empty();
-                    } catch (Exception e) {
-                        System.out.println("⚠️ Error obteniendo pagos de factura " + factura.getId() + ": " + e.getMessage());
-                        return java.util.stream.Stream.empty();
-                    }
-                })
-                .toList();
-            
-            System.out.println("✅ Se encontraron " + todoPagos.size() + " pagos");
-            return ResponseEntity.ok(todoPagos);
+            List<Pago> pagos = pagoService.obtenerPorUsuario(usuarioId);
+            System.out.println("✅ Se encontraron " + pagos.size() + " pagos del usuario: " + usuarioId);
+            return ResponseEntity.ok(pagos);
         } catch (Exception e) {
-            System.out.println("❌ Error: " + e.getMessage());
+            System.out.println("❌ Error obteniendo pagos: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.ok(List.of());
         }

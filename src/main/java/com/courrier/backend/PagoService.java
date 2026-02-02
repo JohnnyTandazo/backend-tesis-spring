@@ -36,6 +36,15 @@ public class PagoService {
     }
 
     /**
+     * Obtener todos los pagos de un usuario (a través de sus facturas)
+     * Usa query directa con JOIN
+     */
+    public List<Pago> obtenerPorUsuario(Long usuarioId) {
+        System.out.println("💳 [PagoService] Obteniendo pagos del usuario: " + usuarioId);
+        return pagoRepository.findByUsuarioId(usuarioId);
+    }
+
+    /**
      * Obtener un pago por ID
      */
     public Optional<Pago> obtenerPorId(Long id) {
