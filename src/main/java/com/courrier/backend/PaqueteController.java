@@ -3,6 +3,7 @@ package com.courrier.backend;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -16,6 +17,9 @@ public class PaqueteController {
 
     @Autowired
     private UsuarioRepository usuarioRepo;
+
+    @Autowired
+    private FacturaRepository facturaRepo;
 
     /**
      * GET /api/paquetes/todos
@@ -158,6 +162,53 @@ public class PaqueteController {
 
         Paquete paqueteActualizado = paqueteRepo.save(paquete);
         System.out.println("✅ Paquete actualizado exitosamente: ID=" + id);
+        
+        // ════════════════════════════════════════════════════════════
+        // 🎯 AUTO-FACTURACIÓN: Generación automática de factura
+        // ════════════════════════════════════════════════════════════
+        System.out.println("\n📋 [AUTO-FACTURACIÓN] Verificando si se debe generar factura...");
+        
+        if (paqueteActualizado.getPrecio() != null && paqueteActualizado.getPrecio() > 0) {
+            System.out.println("   ✓ Precio detectado: $" + paqueteActualizado.getPrecio());
+            
+            // Verificar si ya existe factura para este paquete (evitar duplicados)
+            String descripcionBusqueda = "Importación " + paqueteActualizado.getTrackingNumber();
+            List<Factura> facturasExistentes = facturaRepo.findAll().stream()
+                .filter(f -> descripcionBusqueda.equals(f.getDescripcion()))
+                .toList();
+            
+            if (facturasExistentes.isEmpty()) {
+                System.out.println("   ℹ️ No existe factura previa para este paquete");
+                System.out.println("   🔄 Creando factura automática...");
+                
+                // Crear nueva factura
+                Factura factura = new Factura();
+                factura.setMonto(paqueteActualizado.getPrecio());
+                factura.setEstado("PENDIENTE");
+                factura.setDescripcion("Importación " + paqueteActualizado.getTrackingNumber());
+                factura.setUsuario(paqueteActualizado.getUsuario());
+                factura.setEnvioId(null);  // Es importación, no envío nacional
+                factura.setFechaEmision(LocalDateTime.now());
+                factura.setFechaVencimiento(LocalDateTime.now().plusDays(15));
+                factura.setNumeroFactura("FCT-PKG-" + String.format("%06d", paqueteActualizado.getId()));
+                
+                Factura facturaGuardada = facturaRepo.save(factura);
+                
+                System.out.println("   ✅ Factura generada automáticamente:");
+                System.out.println("      • ID: " + facturaGuardada.getId());
+                System.out.println("      • Número: " + facturaGuardada.getNumeroFactura());
+                System.out.println("      • Monto: $" + facturaGuardada.getMonto());
+                System.out.println("      • Usuario: " + facturaGuardada.getUsuario().getNombre());
+                System.out.println("      • Estado: " + facturaGuardada.getEstado());
+                System.out.println("   💰 FACTURA AUTO-GENERADA: $" + facturaGuardada.getMonto());
+            } else {
+                System.out.println("   ⚠️ Ya existe factura para este paquete (ID: " + 
+                                 facturasExistentes.get(0).getId() + ") - Se omite creación");
+            }
+        } else {
+            System.out.println("   ℹ️ Precio no asignado o es $0.00 - No se genera factura");
+        }
+        System.out.println("════════════════════════════════════════════════════════════\n");
         
         return paqueteActualizado;
     }
