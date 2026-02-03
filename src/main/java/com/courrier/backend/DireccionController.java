@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
 @CrossOrigin(origins = "*")
@@ -13,6 +14,9 @@ public class DireccionController {
 
     @Autowired
     private DireccionService direccionService;
+
+    @Autowired
+    private UsuarioRepository usuarioRepository;
 
     // 1. GET: Obtener direcciones del usuario (por usuarioId como parámetro)
     @GetMapping
@@ -40,11 +44,48 @@ public class DireccionController {
 
     // 2. GET: Obtener una dirección por su ID
     @GetMapping("/{id}")
-    public ResponseEntity<Direccion> obtenerPorId(@PathVariable Long id) {
-        System.out.println("🔎 [GET /api/direcciones/" + id + "] Buscando dirección por ID: " + id);
-        return direccionService.obtenerPorId(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<Direccion> obtenerPorId(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioActualId,
+            @RequestParam(value = "usuarioActualId", required = false) Long usuarioActualIdParam) {
+        
+        // Priorizar header, luego query param
+        Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
+        
+        System.out.println("🔎 [GET /api/direcciones/" + id + "] Buscando dirección por ID: " + id + " - Usuario autenticado: " + usuarioId);
+        
+        var direccionOpt = direccionService.obtenerPorId(id);
+        if (!direccionOpt.isPresent()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        Direccion direccion = direccionOpt.get();
+        
+        // 🔒 VERIFICACIÓN IDOR: Comprobar propiedad del recurso
+        if (usuarioId != null) {
+            Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
+            
+            if (usuarioActual != null) {
+                String rol = usuarioActual.getRol().toUpperCase();
+                
+                // ADMIN y OPERADOR tienen acceso total
+                if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
+                    System.out.println("✅ Acceso autorizado: Usuario " + rol);
+                    return ResponseEntity.ok(direccion);
+                }
+                
+                // CLIENTE: Solo puede ver sus propias direcciones
+                if (rol.equals("CLIENTE")) {
+                    if (!direccion.getUsuario().getId().equals(usuarioActual.getId())) {
+                        System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó acceder a dirección de usuario " + direccion.getUsuario().getId());
+                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver esta dirección");
+                    }
+                    System.out.println("✅ Acceso autorizado: Dirección pertenece al cliente");
+                }
+            }
+        }
+        
+        return ResponseEntity.ok(direccion);
     }
 
     // 3. POST: Crear una nueva dirección (MEJORADO - acepta usuarioId en body o query)

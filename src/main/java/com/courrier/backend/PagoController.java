@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,6 +23,9 @@ public class PagoController {
 
     @Autowired
     private FacturaService facturaService;
+
+    @Autowired
+    private UsuarioRepository usuarioRepository;
 
     /**
      * GET /api/pagos/pendientes
@@ -83,19 +87,55 @@ public class PagoController {
     /**
      * GET /api/pagos/{id}
      * Obtener un pago por ID
+     * SEGURIDAD: Verifica que el usuario tenga permiso para ver este pago
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Pago> obtenerPorId(@PathVariable Long id) {
-        System.out.println("🔍 [GET /api/pagos/" + id + "] PETICIÓN RECIBIDA");
+    public ResponseEntity<Pago> obtenerPorId(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioActualId,
+            @RequestParam(value = "usuarioActualId", required = false) Long usuarioActualIdParam) {
         
-        Optional<Pago> pago = pagoService.obtenerPorId(id);
-        if (pago.isPresent()) {
-            System.out.println("✅ Pago encontrado: $" + pago.get().getMonto());
-            return ResponseEntity.ok(pago.get());
-        } else {
+        // Priorizar header, luego query param
+        Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
+        
+        System.out.println("🔍 [GET /api/pagos/" + id + "] PETICIÓN RECIBIDA - Usuario autenticado: " + usuarioId);
+        
+        Optional<Pago> pagoOpt = pagoService.obtenerPorId(id);
+        if (!pagoOpt.isPresent()) {
             System.out.println("❌ Pago no encontrado");
             return ResponseEntity.notFound().build();
         }
+        
+        Pago pago = pagoOpt.get();
+        
+        // 🔒 VERIFICACIÓN IDOR: Comprobar propiedad del recurso
+        // Los pagos pertenecen a una factura, y la factura pertenece a un usuario
+        if (usuarioId != null) {
+            Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
+            
+            if (usuarioActual != null) {
+                String rol = usuarioActual.getRol().toUpperCase();
+                
+                // ADMIN y OPERADOR tienen acceso total
+                if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
+                    System.out.println("✅ Acceso autorizado: Usuario " + rol);
+                    return ResponseEntity.ok(pago);
+                }
+                
+                // CLIENTE: Solo puede ver pagos de sus propias facturas
+                if (rol.equals("CLIENTE")) {
+                    Usuario duenioFactura = pago.getFactura().getUsuario();
+                    if (!duenioFactura.getId().equals(usuarioActual.getId())) {
+                        System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó acceder a pago de usuario " + duenioFactura.getId());
+                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver este pago");
+                    }
+                    System.out.println("✅ Acceso autorizado: Pago pertenece al cliente");
+                }
+            }
+        }
+        
+        System.out.println("✅ Pago encontrado: $" + pago.getMonto());
+        return ResponseEntity.ok(pago);
     }
 
     /**

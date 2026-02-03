@@ -2,7 +2,9 @@ package com.courrier.backend;
 
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -110,21 +112,92 @@ public class PaqueteController {
     
     // 3. Buscar por Tracking (Para la barra de búsqueda del Home)
     @GetMapping("/rastreo/{tracking}")
-    public Paquete buscarPorTracking(@PathVariable String tracking) {
-        System.out.println("🔍 [GET /api/paquetes/rastreo/" + tracking + "] Buscando paquete por tracking...");
-        return paqueteRepo.findByTrackingNumber(tracking);
+    public Paquete buscarPorTracking(
+            @PathVariable String tracking,
+            @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioActualId,
+            @RequestParam(value = "usuarioActualId", required = false) Long usuarioActualIdParam) {
+        
+        // Priorizar header, luego query param
+        Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
+        
+        System.out.println("🔍 [GET /api/paquetes/rastreo/" + tracking + "] Buscando paquete por tracking - Usuario autenticado: " + usuarioId);
+        Paquete paquete = paqueteRepo.findByTrackingNumber(tracking);
+        
+        if (paquete == null) {
+            return null;
+        }
+        
+        // 🔒 VERIFICACIÓN IDOR: Comprobar propiedad del recurso
+        if (usuarioId != null) {
+            Usuario usuarioActual = usuarioRepo.findById(usuarioId).orElse(null);
+            
+            if (usuarioActual != null) {
+                String rol = usuarioActual.getRol().toUpperCase();
+                
+                // ADMIN y OPERADOR tienen acceso total
+                if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
+                    System.out.println("✅ Acceso autorizado: Usuario " + rol);
+                    return paquete;
+                }
+                
+                // CLIENTE: Solo puede ver sus propios paquetes
+                if (rol.equals("CLIENTE")) {
+                    if (!paquete.getUsuario().getId().equals(usuarioActual.getId())) {
+                        System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó rastrear paquete de usuario " + paquete.getUsuario().getId());
+                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para rastrear este paquete");
+                    }
+                    System.out.println("✅ Acceso autorizado: Paquete pertenece al cliente");
+                }
+            }
+        }
+        
+        return paquete;
     }
 
     // 3b. Buscar por código/tracking (Endpoint alternativo que espera el Frontend)
     @GetMapping("/track/{codigo}")
-    public Paquete buscarPorCodigo(@PathVariable String codigo) {
-        System.out.println("🔍 [GET /api/paquetes/track/" + codigo + "] ✅ PETICIÓN RECIBIDA - Buscando paquete por código: " + codigo);
+    public Paquete buscarPorCodigo(
+            @PathVariable String codigo,
+            @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioActualId,
+            @RequestParam(value = "usuarioActualId", required = false) Long usuarioActualIdParam) {
+        
+        // Priorizar header, luego query param
+        Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
+        
+        System.out.println("🔍 [GET /api/paquetes/track/" + codigo + "] ✅ PETICIÓN RECIBIDA - Buscando paquete por código: " + codigo + " - Usuario autenticado: " + usuarioId);
         Paquete paquete = paqueteRepo.findByTrackingNumber(codigo);
-        if (paquete != null) {
-            System.out.println("✅ Paquete encontrado: " + paquete.getTrackingNumber());
-        } else {
+        
+        if (paquete == null) {
             System.out.println("❌ Paquete NO encontrado para el código: " + codigo);
+            return null;
         }
+        
+        // 🔒 VERIFICACIÓN IDOR: Comprobar propiedad del recurso
+        if (usuarioId != null) {
+            Usuario usuarioActual = usuarioRepo.findById(usuarioId).orElse(null);
+            
+            if (usuarioActual != null) {
+                String rol = usuarioActual.getRol().toUpperCase();
+                
+                // ADMIN y OPERADOR tienen acceso total
+                if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
+                    System.out.println("✅ Acceso autorizado: Usuario " + rol);
+                    System.out.println("✅ Paquete encontrado: " + paquete.getTrackingNumber());
+                    return paquete;
+                }
+                
+                // CLIENTE: Solo puede ver sus propios paquetes
+                if (rol.equals("CLIENTE")) {
+                    if (!paquete.getUsuario().getId().equals(usuarioActual.getId())) {
+                        System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó rastrear paquete de usuario " + paquete.getUsuario().getId());
+                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para rastrear este paquete");
+                    }
+                    System.out.println("✅ Acceso autorizado: Paquete pertenece al cliente");
+                }
+            }
+        }
+        
+        System.out.println("✅ Paquete encontrado: " + paquete.getTrackingNumber());
         return paquete;
     }
 

@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,6 +16,9 @@ public class EnvioController {
     @Autowired
     private EnvioService envioService;
 
+    @Autowired
+    private UsuarioRepository usuarioRepository;
+
     // ORDEN IMPORTANTE DE RUTAS (específicas antes que genéricas):
     // 1. /detalle/{id}
     // 2. /usuario/{usuarioId}
@@ -24,17 +28,50 @@ public class EnvioController {
 
     // GET: Obtener un envío por su ID (/detalle/{id})
     @GetMapping("/detalle/{id}")
-    public ResponseEntity<Envio> obtenerEnvioPorId(@PathVariable Long id) {
-        System.out.println("🔎 [GET /api/envios/detalle/" + id + "] PETICIÓN RECIBIDA");
-        Optional<Envio> envio = envioService.obtenerPorId(id);
+    public ResponseEntity<Envio> obtenerEnvioPorId(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioActualId,
+            @RequestParam(value = "usuarioActualId", required = false) Long usuarioActualIdParam) {
         
-        if (envio.isPresent()) {
-            System.out.println("✅ Envío encontrado: ID=" + id + ", Tracking=" + envio.get().getNumeroTracking());
-            return ResponseEntity.ok(envio.get());
-        } else {
+        // Priorizar header, luego query param
+        Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
+        
+        System.out.println("🔎 [GET /api/envios/detalle/" + id + "] PETICIÓN RECIBIDA - Usuario autenticado: " + usuarioId);
+        Optional<Envio> envioOpt = envioService.obtenerPorId(id);
+        
+        if (!envioOpt.isPresent()) {
             System.out.println("❌ Envío NO encontrado para ID: " + id);
             return ResponseEntity.notFound().build();
         }
+        
+        Envio envio = envioOpt.get();
+        
+        // 🔒 VERIFICACIÓN IDOR: Comprobar propiedad del recurso
+        if (usuarioId != null) {
+            Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
+            
+            if (usuarioActual != null) {
+                String rol = usuarioActual.getRol().toUpperCase();
+                
+                // ADMIN y OPERADOR tienen acceso total
+                if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
+                    System.out.println("✅ Acceso autorizado: Usuario " + rol);
+                    return ResponseEntity.ok(envio);
+                }
+                
+                // CLIENTE: Solo puede ver sus propios envíos
+                if (rol.equals("CLIENTE")) {
+                    if (!envio.getUsuario().getId().equals(usuarioActual.getId())) {
+                        System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó acceder a envío de usuario " + envio.getUsuario().getId());
+                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver este envío");
+                    }
+                    System.out.println("✅ Acceso autorizado: Envío pertenece al cliente");
+                }
+            }
+        }
+        
+        System.out.println("✅ Envío encontrado: ID=" + id + ", Tracking=" + envio.getNumeroTracking());
+        return ResponseEntity.ok(envio);
     }
 
     // GET: Obtener envíos por usuario (/usuario/{usuarioId})
@@ -88,17 +125,50 @@ public class EnvioController {
 
     // GET: Obtener envío por ID directo (/{id}) - DEBE IR AL FINAL
     @GetMapping("/{id}")
-    public ResponseEntity<Envio> obtenerEnvioPorIdDirecto(@PathVariable Long id) {
-        System.out.println("🔎 [GET /api/envios/" + id + "] PETICIÓN RECIBIDA");
-        Optional<Envio> envio = envioService.obtenerPorId(id);
+    public ResponseEntity<Envio> obtenerEnvioPorIdDirecto(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioActualId,
+            @RequestParam(value = "usuarioActualId", required = false) Long usuarioActualIdParam) {
         
-        if (envio.isPresent()) {
-            System.out.println("✅ Envío encontrado: ID=" + id + ", Tracking=" + envio.get().getNumeroTracking());
-            return ResponseEntity.ok(envio.get());
-        } else {
+        // Priorizar header, luego query param
+        Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
+        
+        System.out.println("🔎 [GET /api/envios/" + id + "] PETICIÓN RECIBIDA - Usuario autenticado: " + usuarioId);
+        Optional<Envio> envioOpt = envioService.obtenerPorId(id);
+        
+        if (!envioOpt.isPresent()) {
             System.out.println("❌ Envío NO encontrado con ID: " + id);
             return ResponseEntity.notFound().build();
         }
+        
+        Envio envio = envioOpt.get();
+        
+        // 🔒 VERIFICACIÓN IDOR: Comprobar propiedad del recurso
+        if (usuarioId != null) {
+            Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
+            
+            if (usuarioActual != null) {
+                String rol = usuarioActual.getRol().toUpperCase();
+                
+                // ADMIN y OPERADOR tienen acceso total
+                if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
+                    System.out.println("✅ Acceso autorizado: Usuario " + rol);
+                    return ResponseEntity.ok(envio);
+                }
+                
+                // CLIENTE: Solo puede ver sus propios envíos
+                if (rol.equals("CLIENTE")) {
+                    if (!envio.getUsuario().getId().equals(usuarioActual.getId())) {
+                        System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó acceder a envío de usuario " + envio.getUsuario().getId());
+                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver este envío");
+                    }
+                    System.out.println("✅ Acceso autorizado: Envío pertenece al cliente");
+                }
+            }
+        }
+        
+        System.out.println("✅ Envío encontrado: ID=" + id + ", Tracking=" + envio.getNumeroTracking());
+        return ResponseEntity.ok(envio);
     }
 
     // 5. POST: Crear un nuevo envío

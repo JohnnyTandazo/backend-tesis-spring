@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.text.DecimalFormat;
 import java.util.*;
@@ -27,20 +28,51 @@ public class PdfController {
     @Autowired
     private DireccionRepository direccionRepository;
 
+    @Autowired
+    private UsuarioRepository usuarioRepository;
+
     /**
      * Endpoint: GET /api/pdf/guia/{envioId}
      * Genera PDF de Guía de Remisión para un envío nacional
+     * SEGURIDAD: Verifica que el usuario tenga permiso para ver este PDF
      */
     @GetMapping("/guia/{envioId}")
-    public ResponseEntity<byte[]> generarGuiaRemision(@PathVariable Long envioId) {
+    public ResponseEntity<byte[]> generarGuiaRemision(
+            @PathVariable Long envioId,
+            @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioActualId,
+            @RequestParam(value = "usuarioActualId", required = false) Long usuarioActualIdParam) {
         try {
-            System.out.println("📄 [PdfController] Generando Guía de Remisión para envioId: " + envioId);
+            // Priorizar header, luego query param
+            Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
+            
+            System.out.println("📄 [PdfController] Generando Guía de Remisión para envioId: " + envioId + " - Usuario autenticado: " + usuarioId);
 
             // Buscar el envío
             Envio envio = envioRepository.findById(envioId).orElse(null);
             if (envio == null) {
                 System.out.println("❌ [PdfController] Envío no encontrado: " + envioId);
                 return ResponseEntity.notFound().build();
+            }
+
+            // 🔒 VERIFICACIÓN IDOR: Comprobar propiedad del recurso antes de generar PDF
+            if (usuarioId != null) {
+                Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
+                
+                if (usuarioActual != null) {
+                    String rol = usuarioActual.getRol().toUpperCase();
+                    
+                    // ADMIN y OPERADOR tienen acceso total
+                    if (!rol.equals("ADMIN") && !rol.equals("OPERADOR")) {
+                        // CLIENTE: Solo puede ver PDFs de sus propios envíos
+                        if (!envio.getUsuario().getId().equals(usuarioActual.getId())) {
+                            System.out.println("🚫 ACCESO DENEGADO AL PDF: Cliente " + usuarioId + " intentó descargar guía de envío de usuario " + envio.getUsuario().getId());
+                            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "⛔ ACCESO DENEGADO: No eres el dueño de este documento.");
+                        }
+                        System.out.println("✅ Acceso autorizado: Envío pertenece al cliente");
+                    } else {
+                        System.out.println("✅ Acceso autorizado: Usuario " + rol);
+                    }
+                }
             }
 
             // Preparar datos para la plantilla
@@ -73,6 +105,8 @@ public class PdfController {
 
             return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
 
+        } catch (ResponseStatusException e) {
+            throw e; // Re-lanzar excepciones de seguridad
         } catch (Exception e) {
             System.err.println("💥 [PdfController] Error al generar Guía de Remisión: " + e.getMessage());
             e.printStackTrace();
@@ -83,17 +117,45 @@ public class PdfController {
     /**
      * Endpoint: GET /api/pdf/factura/{facturaId}
      * Genera PDF de Factura de Importación desde USA
+     * SEGURIDAD: Verifica que el usuario tenga permiso para ver este PDF
      */
     @GetMapping("/factura/{facturaId}")
-    public ResponseEntity<byte[]> generarFacturaImportacion(@PathVariable Long facturaId) {
+    public ResponseEntity<byte[]> generarFacturaImportacion(
+            @PathVariable Long facturaId,
+            @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioActualId,
+            @RequestParam(value = "usuarioActualId", required = false) Long usuarioActualIdParam) {
         try {
-            System.out.println("📄 [PdfController] Generando Factura de Importación para facturaId: " + facturaId);
+            // Priorizar header, luego query param
+            Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
+            
+            System.out.println("📄 [PdfController] Generando Factura de Importación para facturaId: " + facturaId + " - Usuario autenticado: " + usuarioId);
 
             // Buscar la factura
             Factura factura = facturaRepository.findById(facturaId).orElse(null);
             if (factura == null) {
                 System.out.println("❌ [PdfController] Factura no encontrada: " + facturaId);
                 return ResponseEntity.notFound().build();
+            }
+
+            // 🔒 VERIFICACIÓN IDOR: Comprobar propiedad del recurso antes de generar PDF
+            if (usuarioId != null) {
+                Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
+                
+                if (usuarioActual != null) {
+                    String rol = usuarioActual.getRol().toUpperCase();
+                    
+                    // ADMIN y OPERADOR tienen acceso total
+                    if (!rol.equals("ADMIN") && !rol.equals("OPERADOR")) {
+                        // CLIENTE: Solo puede ver PDFs de sus propias facturas
+                        if (!factura.getUsuario().getId().equals(usuarioActual.getId())) {
+                            System.out.println("🚫 ACCESO DENEGADO AL PDF: Cliente " + usuarioId + " intentó descargar factura de usuario " + factura.getUsuario().getId());
+                            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "⛔ ACCESO DENEGADO: No eres el dueño de este documento.");
+                        }
+                        System.out.println("✅ Acceso autorizado: Factura pertenece al cliente");
+                    } else {
+                        System.out.println("✅ Acceso autorizado: Usuario " + rol);
+                    }
+                }
             }
 
             // Buscar dirección en Miami del usuario
@@ -154,6 +216,8 @@ public class PdfController {
 
             return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
 
+        } catch (ResponseStatusException e) {
+            throw e; // Re-lanzar excepciones de seguridad
         } catch (Exception e) {
             System.err.println("💥 [PdfController] Error al generar Factura de Importación: " + e.getMessage());
             e.printStackTrace();

@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,6 +19,9 @@ public class FacturaController {
 
     @Autowired
     private FacturaService facturaService;
+
+    @Autowired
+    private UsuarioRepository usuarioRepository;
 
     /**
      * GET /api/facturas/pendientes?usuarioId={id}
@@ -65,19 +69,53 @@ public class FacturaController {
      * GET /api/facturas/{id}
      * Obtener una factura por ID
      * IMPORTANTE: Este debe ir DESPUÉS de /usuario/{usuarioId}
+     * SEGURIDAD: Verifica que el usuario tenga permiso para ver esta factura
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Factura> obtenerPorId(@PathVariable Long id) {
-        System.out.println("🔍 [GET /api/facturas/" + id + "] PETICIÓN RECIBIDA");
+    public ResponseEntity<Factura> obtenerPorId(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioActualId,
+            @RequestParam(value = "usuarioActualId", required = false) Long usuarioActualIdParam) {
         
-        Optional<Factura> factura = facturaService.obtenerPorId(id);
-        if (factura.isPresent()) {
-            System.out.println("✅ Factura encontrada: " + factura.get().getNumeroFactura());
-            return ResponseEntity.ok(factura.get());
-        } else {
+        // Priorizar header, luego query param
+        Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
+        
+        System.out.println("🔍 [GET /api/facturas/" + id + "] PETICIÓN RECIBIDA - Usuario autenticado: " + usuarioId);
+        
+        Optional<Factura> facturaOpt = facturaService.obtenerPorId(id);
+        if (!facturaOpt.isPresent()) {
             System.out.println("❌ Factura no encontrada");
             return ResponseEntity.notFound().build();
         }
+        
+        Factura factura = facturaOpt.get();
+        
+        // 🔒 VERIFICACIÓN IDOR: Comprobar propiedad del recurso
+        if (usuarioId != null) {
+            Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
+            
+            if (usuarioActual != null) {
+                String rol = usuarioActual.getRol().toUpperCase();
+                
+                // ADMIN y OPERADOR tienen acceso total
+                if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
+                    System.out.println("✅ Acceso autorizado: Usuario " + rol);
+                    return ResponseEntity.ok(factura);
+                }
+                
+                // CLIENTE: Solo puede ver sus propias facturas
+                if (rol.equals("CLIENTE")) {
+                    if (!factura.getUsuario().getId().equals(usuarioActual.getId())) {
+                        System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó acceder a factura de usuario " + factura.getUsuario().getId());
+                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver esta factura");
+                    }
+                    System.out.println("✅ Acceso autorizado: Factura pertenece al cliente");
+                }
+            }
+        }
+        
+        System.out.println("✅ Factura encontrada: " + factura.getNumeroFactura());
+        return ResponseEntity.ok(factura);
     }
 
     /**
