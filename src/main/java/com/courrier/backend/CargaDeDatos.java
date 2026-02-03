@@ -1,6 +1,8 @@
 package com.courrier.backend;
 
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,6 +13,10 @@ public class CargaDeDatos implements CommandLineRunner {
 
     @Autowired
     private UsuarioRepository usuarioRepo;
+    
+    @Autowired
+    @Lazy
+    private PasswordEncoder passwordEncoder;
 
     @Autowired
     private PaqueteRepository paqueteRepo;
@@ -34,17 +40,19 @@ public class CargaDeDatos implements CommandLineRunner {
             Usuario cliente = new Usuario();
             cliente.setNombre("Argely Estudiante");
             cliente.setEmail("cliente@test.com");
-            cliente.setPassword("12345"); // En un futuro la encriptaremos
+            cliente.setPassword(passwordEncoder.encode("12345")); // 🔒 ENCRIPTADA CON BCRYPT
             cliente.setRol("CLIENTE");
             cliente.setTelefono("0999999999");
+            // NO asignamos ID - la base de datos lo generará automáticamente
             usuarioRepo.save(cliente);
 
             // 2. CREAR UN OPERADOR (El que actualiza los estados)
             Usuario operador = new Usuario();
             operador.setNombre("Sr. Operador");
             operador.setEmail("operador@test.com");
-            operador.setPassword("admin123");
+            operador.setPassword(passwordEncoder.encode("admin123")); // 🔒 ENCRIPTADA CON BCRYPT
             operador.setRol("OPERADOR");
+            // NO asignamos ID - la base de datos lo generará automáticamente
             usuarioRepo.save(operador);
 
             // 3. CREAR UN PAQUETE DE PRUEBA (Para el Cliente)

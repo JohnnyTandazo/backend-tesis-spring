@@ -153,7 +153,15 @@ public class UsuarioController {
             
             Usuario usuarioGuardado = repositorio.save(usuario);
             System.out.println("✅ Usuario registrado exitosamente: ID=" + usuarioGuardado.getId() + ", Email=" + usuarioGuardado.getEmail());
-            return ResponseEntity.status(HttpStatus.CREATED).body(usuarioGuardado);
+            
+            // 🔒 SEGURIDAD: Devolver DTO sin password
+            return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                "mensaje", "Registro exitoso",
+                "id", usuarioGuardado.getId(),
+                "nombre", usuarioGuardado.getNombre() != null ? usuarioGuardado.getNombre() : "",
+                "email", usuarioGuardado.getEmail(),
+                "rol", usuarioGuardado.getRol()
+            ));
             
         } catch (DataIntegrityViolationException e) {
             // Email duplicado u otra violación de constraint
