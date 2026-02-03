@@ -7,6 +7,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import jakarta.servlet.http.HttpSession;
 
 import java.text.DecimalFormat;
 import java.util.*;
@@ -31,21 +32,24 @@ public class PdfController {
     @Autowired
     private UsuarioRepository usuarioRepository;
 
+    @Autowired
+    private AuthService authService;
+
     /**
      * Endpoint: GET /api/pdf/guia/{envioId}
      * Genera PDF de Guía de Remisión para un envío nacional
-     * SEGURIDAD: Verifica que el usuario tenga permiso para ver este PDF
+     * SEGURIDAD: Obtiene usuario del contexto de sesión (NO de parámetros)
      */
     @GetMapping("/guia/{envioId}")
     public ResponseEntity<byte[]> generarGuiaRemision(
             @PathVariable Long envioId,
-            @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioActualId,
-            @RequestParam(value = "usuarioActualId", required = false) Long usuarioActualIdParam) {
+            HttpSession session) {
         try {
-            // Priorizar header, luego query param
-            Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
-            
-            System.out.println("📄 [PdfController] Generando Guía de Remisión para envioId: " + envioId + " - Usuario autenticado: " + usuarioId);
+            System.out.println("📄 [PdfController] Generando Guía de Remisión para envioId: " + envioId);
+
+            // 🔒 SEGURIDAD: Obtener usuario desde sesión HTTP (NO de parámetros)
+            Usuario usuarioActual = authService.obtenerUsuarioAutenticadoOThrow(session);
+            System.out.println("   Usuario autenticado: " + usuarioActual.getEmail() + " (ID: " + usuarioActual.getId() + ")");
 
             // Buscar el envío
             Envio envio = envioRepository.findById(envioId).orElse(null);
@@ -54,25 +58,12 @@ public class PdfController {
                 return ResponseEntity.notFound().build();
             }
 
-            // 🔒 VERIFICACIÓN IDOR: Comprobar propiedad del recurso antes de generar PDF
-            if (usuarioId != null) {
-                Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
-                
-                if (usuarioActual != null) {
-                    String rol = usuarioActual.getRol().toUpperCase();
-                    
-                    // ADMIN y OPERADOR tienen acceso total
-                    if (!rol.equals("ADMIN") && !rol.equals("OPERADOR")) {
-                        // CLIENTE: Solo puede ver PDFs de sus propios envíos
-                        if (!envio.getUsuario().getId().equals(usuarioActual.getId())) {
-                            System.out.println("🚫 ACCESO DENEGADO AL PDF: Cliente " + usuarioId + " intentó descargar guía de envío de usuario " + envio.getUsuario().getId());
-                            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "⛔ ACCESO DENEGADO: No eres el dueño de este documento.");
-                        }
-                        System.out.println("✅ Acceso autorizado: Envío pertenece al cliente");
-                    } else {
-                        System.out.println("✅ Acceso autorizado: Usuario " + rol);
-                    }
-                }
+            // 🔒 VERIFICACIÓN IDOR: Verificar propiedad del recurso
+            if (!authService.tieneAcceso(usuarioActual, envio.getUsuario())) {
+                System.out.println("🚫 ACCESO DENEGADO AL PDF: Usuario " + usuarioActual.getEmail() + 
+                    " intentó descargar guía de envío de usuario " + envio.getUsuario().getEmail());
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, 
+                    "⛔ ACCESO DENEGADO: No eres el dueño de este documento.");
             }
 
             // Preparar datos para la plantilla
@@ -107,6 +98,9 @@ public class PdfController {
 
         } catch (ResponseStatusException e) {
             throw e; // Re-lanzar excepciones de seguridad
+        } catch (RuntimeException e) {
+            System.out.println("❌ [PdfController] Error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
         } catch (Exception e) {
             System.err.println("💥 [PdfController] Error al generar Guía de Remisión: " + e.getMessage());
             e.printStackTrace();
@@ -117,18 +111,18 @@ public class PdfController {
     /**
      * Endpoint: GET /api/pdf/factura/{facturaId}
      * Genera PDF de Factura de Importación desde USA
-     * SEGURIDAD: Verifica que el usuario tenga permiso para ver este PDF
+     * SEGURIDAD: Obtiene usuario del contexto de sesión (NO de parámetros)
      */
     @GetMapping("/factura/{facturaId}")
     public ResponseEntity<byte[]> generarFacturaImportacion(
             @PathVariable Long facturaId,
-            @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioActualId,
-            @RequestParam(value = "usuarioActualId", required = false) Long usuarioActualIdParam) {
+            HttpSession session) {
         try {
-            // Priorizar header, luego query param
-            Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
-            
-            System.out.println("📄 [PdfController] Generando Factura de Importación para facturaId: " + facturaId + " - Usuario autenticado: " + usuarioId);
+            System.out.println("📄 [PdfController] Generando Factura de Importación para facturaId: " + facturaId);
+
+            // 🔒 SEGURIDAD: Obtener usuario desde sesión HTTP (NO de parámetros)
+            Usuario usuarioActual = authService.obtenerUsuarioAutenticadoOThrow(session);
+            System.out.println("   Usuario autenticado: " + usuarioActual.getEmail() + " (ID: " + usuarioActual.getId() + ")");
 
             // Buscar la factura
             Factura factura = facturaRepository.findById(facturaId).orElse(null);
@@ -137,25 +131,12 @@ public class PdfController {
                 return ResponseEntity.notFound().build();
             }
 
-            // 🔒 VERIFICACIÓN IDOR: Comprobar propiedad del recurso antes de generar PDF
-            if (usuarioId != null) {
-                Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
-                
-                if (usuarioActual != null) {
-                    String rol = usuarioActual.getRol().toUpperCase();
-                    
-                    // ADMIN y OPERADOR tienen acceso total
-                    if (!rol.equals("ADMIN") && !rol.equals("OPERADOR")) {
-                        // CLIENTE: Solo puede ver PDFs de sus propias facturas
-                        if (!factura.getUsuario().getId().equals(usuarioActual.getId())) {
-                            System.out.println("🚫 ACCESO DENEGADO AL PDF: Cliente " + usuarioId + " intentó descargar factura de usuario " + factura.getUsuario().getId());
-                            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "⛔ ACCESO DENEGADO: No eres el dueño de este documento.");
-                        }
-                        System.out.println("✅ Acceso autorizado: Factura pertenece al cliente");
-                    } else {
-                        System.out.println("✅ Acceso autorizado: Usuario " + rol);
-                    }
-                }
+            // 🔒 VERIFICACIÓN IDOR: Verificar propiedad del recurso
+            if (!authService.tieneAcceso(usuarioActual, factura.getUsuario())) {
+                System.out.println("🚫 ACCESO DENEGADO AL PDF: Usuario " + usuarioActual.getEmail() + 
+                    " intentó descargar factura de usuario " + factura.getUsuario().getEmail());
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, 
+                    "⛔ ACCESO DENEGADO: No eres el dueño de este documento.");
             }
 
             // Buscar dirección en Miami del usuario
@@ -169,22 +150,22 @@ public class PdfController {
                 if (direccionOpt.isPresent()) {
                     Direccion dir = direccionOpt.get();
                     direccionMiami = dir.getCallePrincipal() + ", " + dir.getCiudad();
-                    locker = dir.getAlias(); // Usamos alias como locker
+                    locker = dir.getAlias();
                 }
             }
 
             // Calcular totales
             DecimalFormat df = new DecimalFormat("#.00");
             double subtotal = factura.getMonto();
-            double impuestos = subtotal * 0.20; // 20% de aranceles
+            double impuestos = subtotal * 0.20;
             double total = subtotal + impuestos;
 
-            // Crear items (simulado - en producción vendría de una tabla relacionada)
+            // Crear items
             List<Map<String, Object>> items = new ArrayList<>();
             Map<String, Object> item = new HashMap<>();
             item.put("descripcion", factura.getDescripcion() != null ? factura.getDescripcion() : "Servicio de importación");
             item.put("peso", factura.getEnvio() != null && factura.getEnvio().getPesoLibras() != null ? factura.getEnvio().getPesoLibras() : 0.0);
-            item.put("precioUnitario", 15.00); // Precio fijo por defecto
+            item.put("precioUnitario", 15.00);
             item.put("total", factura.getMonto());
             items.add(item);
 
@@ -218,6 +199,9 @@ public class PdfController {
 
         } catch (ResponseStatusException e) {
             throw e; // Re-lanzar excepciones de seguridad
+        } catch (RuntimeException e) {
+            System.out.println("❌ [PdfController] Error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
         } catch (Exception e) {
             System.err.println("💥 [PdfController] Error al generar Factura de Importación: " + e.getMessage());
             e.printStackTrace();
