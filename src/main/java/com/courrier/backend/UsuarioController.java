@@ -3,7 +3,6 @@ package com.courrier.backend;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpSession;
 import java.util.List;
 import java.util.Map;
 
@@ -36,7 +35,7 @@ public class UsuarioController {
 
     // 3. POST: Login - Valida email y contraseña
     @PostMapping("/login")
-    public Usuario login(@RequestBody Map<String, String> credenciales, HttpSession session) {
+    public Usuario login(@RequestBody Map<String, String> credenciales) {
         String email = credenciales.get("email");
         String password = credenciales.get("password");
         System.out.println("🔐 [POST /api/usuarios/login] ✅ PETICIÓN RECIBIDA - Intentando login con: " + email);
@@ -52,14 +51,7 @@ public class UsuarioController {
             throw new RuntimeException("Contraseña incorrecta");
         }
 
-        // ✅ NUEVO: Almacenar usuario en sesión HTTP (seguro)
-        session.setAttribute("usuarioId", usuario.getId());
-        session.setAttribute("usuarioEmail", usuario.getEmail());
-        session.setAttribute("usuarioRol", usuario.getRol());
-        
         System.out.println("✅ Login exitoso para: " + email + " (ID=" + usuario.getId() + ")");
-        System.out.println("✅ Sesión creada: " + session.getId());
-        
         return usuario;
     }
 
