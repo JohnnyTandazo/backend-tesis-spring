@@ -1,5 +1,8 @@
 package com.courrier.backend;
 
+import com.lowagie.text.Document;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.pdf.PdfWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -8,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.ByteArrayOutputStream;
 import java.text.DecimalFormat;
 import java.util.*;
 
@@ -24,6 +28,9 @@ public class PdfController extends BaseSecurityController {
 
     @Autowired
     private FacturaRepository facturaRepository;
+
+    @Autowired
+    private PaqueteRepository paqueteRepository;
 
     @Autowired
     private DireccionRepository direccionRepository;
@@ -43,51 +50,83 @@ public class PdfController extends BaseSecurityController {
             
             // Buscar el envío
             Envio envio = envioRepository.findById(envioId).orElse(null);
-            if (envio == null) {
-                System.out.println("❌ [PdfController] Envío no encontrado: " + envioId);
+            if (envio != null) {
+                System.out.println("✅ Envío encontrado: " + envio.getNumeroTracking());
+                System.out.println("✅ Propietario del envío: Usuario ID " + envio.getUsuario().getId());
+
+                // 🔒 VERIFICACIÓN IDOR: Validar propiedad
+                String rol = usuarioActual.getRol().toUpperCase();
+                if (!rol.equals("ADMIN") && !rol.equals("OPERADOR") && 
+                    !envio.getUsuario().getId().equals(usuarioActual.getId())) {
+                    System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioActual.getId() + " intentó generar guía de envío de usuario " + envio.getUsuario().getId());
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para generar guía de este envío");
+                }
+
+                // Preparar datos para la plantilla
+                Map<String, Object> datos = new HashMap<>();
+                datos.put("numeroTracking", envio.getNumeroTracking());
+                datos.put("usuario", envio.getUsuario() != null ? envio.getUsuario().getNombre() : "N/A");
+                datos.put("telefono", envio.getUsuario() != null ? envio.getUsuario().getTelefono() : "N/A");
+                datos.put("fechaCreacion", envio.getFechaCreacion().toString());
+                datos.put("destinatarioNombre", envio.getDestinatarioNombre());
+                datos.put("destinatarioCiudad", envio.getDestinatarioCiudad());
+                datos.put("destinatarioDireccion", envio.getDestinatarioDireccion());
+                datos.put("destinatarioTelefono", envio.getDestinatarioTelefono());
+                datos.put("descripcion", envio.getDescripcion() != null ? envio.getDescripcion() : "Sin descripción");
+                datos.put("pesoLibras", envio.getPesoLibras() != null ? envio.getPesoLibras() : 0.0);
+                datos.put("categoria", envio.getCategoria() != null ? envio.getCategoria() : "N/A");
+                datos.put("estado", envio.getEstado());
+
+                System.out.println("✅ [PdfController] Datos preparados. Generando PDF...");
+
+                // Generar PDF
+                byte[] pdfBytes = pdfService.generarPdf("guia-remision", datos);
+
+                // Configurar headers
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_PDF);
+                headers.add(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"guia-remision-" + envio.getNumeroTracking() + ".pdf\"");
+                headers.setContentLength(pdfBytes.length);
+
+                System.out.println("🎉 [PdfController] PDF generado correctamente (" + pdfBytes.length + " bytes)");
+
+                return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+            }
+
+            // Salvavidas: intentar por Paquete si no existe Envío con ese ID
+            Paquete paquete = paqueteRepository.findById(envioId).orElse(null);
+            if (paquete == null) {
+                System.out.println("❌ [PdfController] Envío/Paquete no encontrado: " + envioId);
                 return ResponseEntity.notFound().build();
             }
 
-            System.out.println("✅ Envío encontrado: " + envio.getNumeroTracking());
-            System.out.println("✅ Propietario del envío: Usuario ID " + envio.getUsuario().getId());
-
-            // 🔒 VERIFICACIÓN IDOR: Validar propiedad
             String rol = usuarioActual.getRol().toUpperCase();
             if (!rol.equals("ADMIN") && !rol.equals("OPERADOR") && 
-                !envio.getUsuario().getId().equals(usuarioActual.getId())) {
-                System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioActual.getId() + " intentó generar guía de envío de usuario " + envio.getUsuario().getId());
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para generar guía de este envío");
+                paquete.getUsuario() != null && !paquete.getUsuario().getId().equals(usuarioActual.getId())) {
+                System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioActual.getId() + " intentó generar guía de paquete de usuario " + paquete.getUsuario().getId());
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para generar guía de este paquete");
             }
 
-            // Preparar datos para la plantilla
-            Map<String, Object> datos = new HashMap<>();
-            datos.put("numeroTracking", envio.getNumeroTracking());
-            datos.put("usuario", envio.getUsuario() != null ? envio.getUsuario().getNombre() : "N/A");
-            datos.put("telefono", envio.getUsuario() != null ? envio.getUsuario().getTelefono() : "N/A");
-            datos.put("fechaCreacion", envio.getFechaCreacion().toString());
-            datos.put("destinatarioNombre", envio.getDestinatarioNombre());
-            datos.put("destinatarioCiudad", envio.getDestinatarioCiudad());
-            datos.put("destinatarioDireccion", envio.getDestinatarioDireccion());
-            datos.put("destinatarioTelefono", envio.getDestinatarioTelefono());
-            datos.put("descripcion", envio.getDescripcion() != null ? envio.getDescripcion() : "Sin descripción");
-            datos.put("pesoLibras", envio.getPesoLibras() != null ? envio.getPesoLibras() : 0.0);
-            datos.put("categoria", envio.getCategoria() != null ? envio.getCategoria() : "N/A");
-            datos.put("estado", envio.getEstado());
+            try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                Document document = new Document();
+                PdfWriter.getInstance(document, out);
+                document.open();
 
-            System.out.println("✅ [PdfController] Datos preparados. Generando PDF...");
+                document.add(new Paragraph("GUÍA DE REMISIÓN - CURRIER TICS"));
+                document.add(new Paragraph("------------------------------------------------"));
+                document.add(new Paragraph("Tracking: " + paquete.getTrackingNumber()));
+                document.add(new Paragraph("Descripción: " + (paquete.getDescripcion() != null ? paquete.getDescripcion() : "N/A")));
+                document.add(new Paragraph("Categoría: " + (paquete.getCategoria() != null ? paquete.getCategoria() : "N/A")));
+                document.add(new Paragraph("Estado: " + (paquete.getEstado() != null ? paquete.getEstado() : "N/A")));
+                document.add(new Paragraph("Fecha: " + new Date()));
 
-            // Generar PDF
-            byte[] pdfBytes = pdfService.generarPdf("guia-remision", datos);
+                document.close();
 
-            // Configurar headers
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_PDF);
-            headers.add(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"guia-remision-" + envio.getNumeroTracking() + ".pdf\"");
-            headers.setContentLength(pdfBytes.length);
-
-            System.out.println("🎉 [PdfController] PDF generado correctamente (" + pdfBytes.length + " bytes)");
-
-            return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+                return ResponseEntity.ok()
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=guia_" + envioId + ".pdf")
+                        .contentType(MediaType.APPLICATION_PDF)
+                        .body(out.toByteArray());
+            }
 
         } catch (ResponseStatusException e) {
             throw e;
