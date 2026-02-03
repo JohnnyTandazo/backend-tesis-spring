@@ -26,6 +26,9 @@ public class UsuarioController {
     @Lazy  // 🔧 Lazy loading para evitar BeanCurrentlyInCreationException (dependencia circular)
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
     // 1. GET: Para ver todos los usuarios registrados
     @GetMapping
     public List<Usuario> listarUsuarios() {
@@ -60,7 +63,13 @@ public class UsuarioController {
             
             Usuario usuarioGuardado = repositorio.save(usuario);
             System.out.println("✅ Usuario guardado exitosamente: ID=" + usuarioGuardado.getId());
-            return ResponseEntity.status(HttpStatus.CREATED).body(usuarioGuardado);
+            return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                "mensaje", "Usuario creado exitosamente",
+                "id", usuarioGuardado.getId(),
+                "nombre", usuarioGuardado.getNombre() != null ? usuarioGuardado.getNombre() : "",
+                "email", usuarioGuardado.getEmail(),
+                "rol", usuarioGuardado.getRol()
+            ));
             
         } catch (DataIntegrityViolationException e) {
             // Email duplicado u otra violación de constraint
@@ -110,7 +119,15 @@ public class UsuarioController {
             }
 
             System.out.println("✅ Login exitoso para: " + email + " (ID=" + usuario.getId() + ")");
-            return ResponseEntity.ok(usuario);
+            String token = jwtUtil.generarToken(usuario.getEmail(), usuario.getId(), usuario.getRol());
+            return ResponseEntity.ok(Map.of(
+                "mensaje", "Login exitoso",
+                "id", usuario.getId(),
+                "nombre", usuario.getNombre() != null ? usuario.getNombre() : "",
+                "email", usuario.getEmail(),
+                "rol", usuario.getRol(),
+                "token", token
+            ));
             
         } catch (Exception e) {
             System.err.println("❌ Error en login: " + e.getMessage());
@@ -153,14 +170,16 @@ public class UsuarioController {
             
             Usuario usuarioGuardado = repositorio.save(usuario);
             System.out.println("✅ Usuario registrado exitosamente: ID=" + usuarioGuardado.getId() + ", Email=" + usuarioGuardado.getEmail());
+            String token = jwtUtil.generarToken(usuarioGuardado.getEmail(), usuarioGuardado.getId(), usuarioGuardado.getRol());
             
-            // 🔒 SEGURIDAD: Devolver DTO sin password
+            // 🔒 SEGURIDAD: Devolver DTO sin password + token
             return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
                 "mensaje", "Registro exitoso",
                 "id", usuarioGuardado.getId(),
                 "nombre", usuarioGuardado.getNombre() != null ? usuarioGuardado.getNombre() : "",
                 "email", usuarioGuardado.getEmail(),
-                "rol", usuarioGuardado.getRol()
+                "rol", usuarioGuardado.getRol(),
+                "token", token
             ));
             
         } catch (DataIntegrityViolationException e) {
