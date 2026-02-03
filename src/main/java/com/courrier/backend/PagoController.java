@@ -149,6 +149,17 @@ public class PagoController extends BaseSecurityController {
         try {
             // 🔒 SEGURIDAD: Obtener usuario desde JWT
             Usuario usuarioActual = obtenerUsuarioAutenticado();
+
+            // 🔒 BLOQUEO DOBLE PAGO: Factura debe estar PENDIENTE
+            Optional<Factura> facturaOpt = facturaService.obtenerPorId(facturaId);
+            if (facturaOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+            Factura factura = facturaOpt.get();
+            if (!"PENDIENTE".equalsIgnoreCase(factura.getEstado())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Esta factura ya ha sido pagada o está en proceso.");
+            }
             
             String comprobanteNombre = (comprobante != null ? comprobante.getOriginalFilename() : null);
             Pago nuevo = pagoService.registrarPago(facturaId, monto, metodoPago, referencia, comprobanteNombre);

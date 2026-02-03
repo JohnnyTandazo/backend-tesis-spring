@@ -66,11 +66,12 @@ public class FacturaController extends BaseSecurityController {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver estas facturas");
             }
             
-            List<Factura> facturas = facturaService.obtenerPorUsuario(usuarioId);
+            // ✅ SOLO PENDIENTES para dropdown/dashboard
+            List<Factura> facturas = facturaService.obtenerPendientes(usuarioId);
             if (facturas == null) {
                 return ResponseEntity.ok(List.of());
             }
-            System.out.println("✅ Se encontraron " + facturas.size() + " facturas");
+            System.out.println("✅ Se encontraron " + facturas.size() + " facturas PENDIENTES");
             return ResponseEntity.ok(facturas);
         } catch (Exception e) {
             System.out.println("❌ Error: " + e.getMessage());
