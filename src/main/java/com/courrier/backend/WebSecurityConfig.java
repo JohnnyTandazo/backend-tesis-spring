@@ -17,6 +17,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * ✅ CONFIGURACIÓN DE SPRING SECURITY
@@ -84,11 +85,10 @@ public class WebSecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         
         // 🌍 ORÍGENES PERMITIDOS
-        // Para PRODUCCIÓN: Especificar explícitamente el dominio del frontend
-        configuration.setAllowedOrigins(Arrays.asList(
-            "https://v0-currier-tics-layout.vercel.app",  // 🟢 Frontend en Vercel
-            "http://localhost:3000",                        // 🟢 Desarrollo local
-            "http://localhost:8080"                         // 🟢 Si frontend está en mismo host
+        // Permitir frontend Vercel y localhost con wildcard
+        configuration.setAllowedOriginPatterns(List.of(
+            "https://*.vercel.app",
+            "http://localhost:*"
         ));
         
         // 📤 MÉTODOS HTTP PERMITIDOS
@@ -101,15 +101,7 @@ public class WebSecurityConfig {
         ));
         
         // 📋 HEADERS PERMITIDOS EN PETICIONES
-        configuration.setAllowedHeaders(Arrays.asList(
-            "Authorization",           // ✅ JWT token aquí
-            "Content-Type",           // ✅ application/json
-            "X-Requested-With",
-            "Accept",
-            "Origin",
-            "Access-Control-Request-Method",      // Para Preflight
-            "Access-Control-Request-Headers"      // Para Preflight
-        ));
+        configuration.setAllowedHeaders(List.of("*"));
         
         // 📤 HEADERS EXPUESTOS EN RESPUESTAS
         configuration.setExposedHeaders(Arrays.asList(
