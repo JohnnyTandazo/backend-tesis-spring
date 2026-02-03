@@ -37,6 +37,13 @@ public class EnvioController {
         Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
         
         System.out.println("🔎 [GET /api/envios/detalle/" + id + "] PETICIÓN RECIBIDA - Usuario autenticado: " + usuarioId);
+        
+        // 🔒 VALIDACIÓN CRÍTICA: Rechazar si falta usuario autenticado
+        if (usuarioId == null) {
+            System.out.println("❌ [SEGURIDAD] Usuario no autenticado - falta X-Usuario-Id");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "❌ Token requerido: Envía X-Usuario-Id en header o usuarioActualId en query");
+        }
+        
         Optional<Envio> envioOpt = envioService.obtenerPorId(id);
         
         if (!envioOpt.isPresent()) {
@@ -46,30 +53,29 @@ public class EnvioController {
         
         Envio envio = envioOpt.get();
         
-        // 🔒 VERIFICACIÓN IDOR: Comprobar propiedad del recurso
-        if (usuarioId != null) {
-            Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
-            
-            if (usuarioActual != null) {
-                String rol = usuarioActual.getRol().toUpperCase();
-                
-                // ADMIN y OPERADOR tienen acceso total
-                if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
-                    System.out.println("✅ Acceso autorizado: Usuario " + rol);
-                    return ResponseEntity.ok(envio);
-                }
-                
-                // CLIENTE: Solo puede ver sus propios envíos
-                if (rol.equals("CLIENTE")) {
-                    if (!envio.getUsuario().getId().equals(usuarioActual.getId())) {
-                        System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó acceder a envío de usuario " + envio.getUsuario().getId());
-                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver este envío");
-                    }
-                    System.out.println("✅ Acceso autorizado: Envío pertenece al cliente");
-                }
-            }
+        // 🔒 VERIFICACIÓN IDOR: Obtener usuario y comprobar propiedad
+        Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
+        
+        if (usuarioActual == null) {
+            System.out.println("❌ [SEGURIDAD] Usuario no encontrado en BD: " + usuarioId);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado");
         }
         
+        String rol = usuarioActual.getRol().toUpperCase();
+        
+        // ADMIN y OPERADOR tienen acceso total
+        if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
+            System.out.println("✅ Acceso autorizado: Usuario " + rol);
+            return ResponseEntity.ok(envio);
+        }
+        
+        // CLIENTE: Solo puede ver sus propios envíos
+        if (!envio.getUsuario().getId().equals(usuarioActual.getId())) {
+            System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó acceder a envío de usuario " + envio.getUsuario().getId());
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver este envío");
+        }
+        
+        System.out.println("✅ Acceso autorizado: Envío pertenece al cliente");
         System.out.println("✅ Envío encontrado: ID=" + id + ", Tracking=" + envio.getNumeroTracking());
         return ResponseEntity.ok(envio);
     }
@@ -134,6 +140,13 @@ public class EnvioController {
         Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
         
         System.out.println("🔎 [GET /api/envios/" + id + "] PETICIÓN RECIBIDA - Usuario autenticado: " + usuarioId);
+        
+        // 🔒 VALIDACIÓN CRÍTICA: Rechazar si falta usuario autenticado
+        if (usuarioId == null) {
+            System.out.println("❌ [SEGURIDAD] Usuario no autenticado - falta X-Usuario-Id");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "❌ Token requerido: Envía X-Usuario-Id en header o usuarioActualId en query");
+        }
+        
         Optional<Envio> envioOpt = envioService.obtenerPorId(id);
         
         if (!envioOpt.isPresent()) {
@@ -143,30 +156,29 @@ public class EnvioController {
         
         Envio envio = envioOpt.get();
         
-        // 🔒 VERIFICACIÓN IDOR: Comprobar propiedad del recurso
-        if (usuarioId != null) {
-            Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
-            
-            if (usuarioActual != null) {
-                String rol = usuarioActual.getRol().toUpperCase();
-                
-                // ADMIN y OPERADOR tienen acceso total
-                if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
-                    System.out.println("✅ Acceso autorizado: Usuario " + rol);
-                    return ResponseEntity.ok(envio);
-                }
-                
-                // CLIENTE: Solo puede ver sus propios envíos
-                if (rol.equals("CLIENTE")) {
-                    if (!envio.getUsuario().getId().equals(usuarioActual.getId())) {
-                        System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó acceder a envío de usuario " + envio.getUsuario().getId());
-                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver este envío");
-                    }
-                    System.out.println("✅ Acceso autorizado: Envío pertenece al cliente");
-                }
-            }
+        // 🔒 VERIFICACIÓN IDOR: Obtener usuario y comprobar propiedad
+        Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
+        
+        if (usuarioActual == null) {
+            System.out.println("❌ [SEGURIDAD] Usuario no encontrado en BD: " + usuarioId);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado");
         }
         
+        String rol = usuarioActual.getRol().toUpperCase();
+        
+        // ADMIN y OPERADOR tienen acceso total
+        if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
+            System.out.println("✅ Acceso autorizado: Usuario " + rol);
+            return ResponseEntity.ok(envio);
+        }
+        
+        // CLIENTE: Solo puede ver sus propios envíos
+        if (!envio.getUsuario().getId().equals(usuarioActual.getId())) {
+            System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó acceder a envío de usuario " + envio.getUsuario().getId());
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver este envío");
+        }
+        
+        System.out.println("✅ Acceso autorizado: Envío pertenece al cliente");
         System.out.println("✅ Envío encontrado: ID=" + id + ", Tracking=" + envio.getNumeroTracking());
         return ResponseEntity.ok(envio);
     }

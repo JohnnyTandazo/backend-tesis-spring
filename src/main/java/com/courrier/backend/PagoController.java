@@ -100,6 +100,12 @@ public class PagoController {
         
         System.out.println("🔍 [GET /api/pagos/" + id + "] PETICIÓN RECIBIDA - Usuario autenticado: " + usuarioId);
         
+        // 🔒 VALIDACIÓN CRÍTICA: Rechazar si falta usuario autenticado
+        if (usuarioId == null) {
+            System.out.println("❌ [SEGURIDAD] Usuario no autenticado - falta X-Usuario-Id");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "❌ Token requerido: Envía X-Usuario-Id en header o usuarioActualId en query");
+        }
+        
         Optional<Pago> pagoOpt = pagoService.obtenerPorId(id);
         if (!pagoOpt.isPresent()) {
             System.out.println("❌ Pago no encontrado");
@@ -108,32 +114,31 @@ public class PagoController {
         
         Pago pago = pagoOpt.get();
         
-        // 🔒 VERIFICACIÓN IDOR: Comprobar propiedad del recurso
+        // 🔒 VERIFICACIÓN IDOR: Obtener usuario y comprobar propiedad
         // Los pagos pertenecen a una factura, y la factura pertenece a un usuario
-        if (usuarioId != null) {
-            Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
-            
-            if (usuarioActual != null) {
-                String rol = usuarioActual.getRol().toUpperCase();
-                
-                // ADMIN y OPERADOR tienen acceso total
-                if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
-                    System.out.println("✅ Acceso autorizado: Usuario " + rol);
-                    return ResponseEntity.ok(pago);
-                }
-                
-                // CLIENTE: Solo puede ver pagos de sus propias facturas
-                if (rol.equals("CLIENTE")) {
-                    Usuario duenioFactura = pago.getFactura().getUsuario();
-                    if (!duenioFactura.getId().equals(usuarioActual.getId())) {
-                        System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó acceder a pago de usuario " + duenioFactura.getId());
-                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver este pago");
-                    }
-                    System.out.println("✅ Acceso autorizado: Pago pertenece al cliente");
-                }
-            }
+        Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
+        
+        if (usuarioActual == null) {
+            System.out.println("❌ [SEGURIDAD] Usuario no encontrado en BD: " + usuarioId);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado");
         }
         
+        String rol = usuarioActual.getRol().toUpperCase();
+        
+        // ADMIN y OPERADOR tienen acceso total
+        if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
+            System.out.println("✅ Acceso autorizado: Usuario " + rol);
+            return ResponseEntity.ok(pago);
+        }
+        
+        // CLIENTE: Solo puede ver pagos de sus propias facturas
+        Usuario duenioFactura = pago.getFactura().getUsuario();
+        if (!duenioFactura.getId().equals(usuarioActual.getId())) {
+            System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó acceder a pago de usuario " + duenioFactura.getId());
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver este pago");
+        }
+        
+        System.out.println("✅ Acceso autorizado: Pago pertenece al cliente");
         System.out.println("✅ Pago encontrado: $" + pago.getMonto());
         return ResponseEntity.ok(pago);
     }

@@ -121,36 +121,42 @@ public class PaqueteController {
         Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
         
         System.out.println("🔍 [GET /api/paquetes/rastreo/" + tracking + "] Buscando paquete por tracking - Usuario autenticado: " + usuarioId);
+        
+        // 🔒 VALIDACIÓN CRÍTICA: Rechazar si falta usuario autenticado
+        if (usuarioId == null) {
+            System.out.println("❌ [SEGURIDAD] Usuario no autenticado - falta X-Usuario-Id");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "❌ Token requerido: Envía X-Usuario-Id en header o usuarioActualId en query");
+        }
+        
         Paquete paquete = paqueteRepo.findByTrackingNumber(tracking);
         
         if (paquete == null) {
             return null;
         }
         
-        // 🔒 VERIFICACIÓN IDOR: Comprobar propiedad del recurso
-        if (usuarioId != null) {
-            Usuario usuarioActual = usuarioRepo.findById(usuarioId).orElse(null);
-            
-            if (usuarioActual != null) {
-                String rol = usuarioActual.getRol().toUpperCase();
-                
-                // ADMIN y OPERADOR tienen acceso total
-                if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
-                    System.out.println("✅ Acceso autorizado: Usuario " + rol);
-                    return paquete;
-                }
-                
-                // CLIENTE: Solo puede ver sus propios paquetes
-                if (rol.equals("CLIENTE")) {
-                    if (!paquete.getUsuario().getId().equals(usuarioActual.getId())) {
-                        System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó rastrear paquete de usuario " + paquete.getUsuario().getId());
-                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para rastrear este paquete");
-                    }
-                    System.out.println("✅ Acceso autorizado: Paquete pertenece al cliente");
-                }
-            }
+        // 🔒 VERIFICACIÓN IDOR: Obtener usuario y comprobar propiedad
+        Usuario usuarioActual = usuarioRepo.findById(usuarioId).orElse(null);
+        
+        if (usuarioActual == null) {
+            System.out.println("❌ [SEGURIDAD] Usuario no encontrado en BD: " + usuarioId);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado");
         }
         
+        String rol = usuarioActual.getRol().toUpperCase();
+        
+        // ADMIN y OPERADOR tienen acceso total
+        if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
+            System.out.println("✅ Acceso autorizado: Usuario " + rol);
+            return paquete;
+        }
+        
+        // CLIENTE: Solo puede ver sus propios paquetes
+        if (!paquete.getUsuario().getId().equals(usuarioActual.getId())) {
+            System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó rastrear paquete de usuario " + paquete.getUsuario().getId());
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para rastrear este paquete");
+        }
+        
+        System.out.println("✅ Acceso autorizado: Paquete pertenece al cliente");
         return paquete;
     }
 
@@ -165,6 +171,13 @@ public class PaqueteController {
         Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
         
         System.out.println("🔍 [GET /api/paquetes/track/" + codigo + "] ✅ PETICIÓN RECIBIDA - Buscando paquete por código: " + codigo + " - Usuario autenticado: " + usuarioId);
+        
+        // 🔒 VALIDACIÓN CRÍTICA: Rechazar si falta usuario autenticado
+        if (usuarioId == null) {
+            System.out.println("❌ [SEGURIDAD] Usuario no autenticado - falta X-Usuario-Id");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "❌ Token requerido: Envía X-Usuario-Id en header o usuarioActualId en query");
+        }
+        
         Paquete paquete = paqueteRepo.findByTrackingNumber(codigo);
         
         if (paquete == null) {
@@ -172,31 +185,30 @@ public class PaqueteController {
             return null;
         }
         
-        // 🔒 VERIFICACIÓN IDOR: Comprobar propiedad del recurso
-        if (usuarioId != null) {
-            Usuario usuarioActual = usuarioRepo.findById(usuarioId).orElse(null);
-            
-            if (usuarioActual != null) {
-                String rol = usuarioActual.getRol().toUpperCase();
-                
-                // ADMIN y OPERADOR tienen acceso total
-                if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
-                    System.out.println("✅ Acceso autorizado: Usuario " + rol);
-                    System.out.println("✅ Paquete encontrado: " + paquete.getTrackingNumber());
-                    return paquete;
-                }
-                
-                // CLIENTE: Solo puede ver sus propios paquetes
-                if (rol.equals("CLIENTE")) {
-                    if (!paquete.getUsuario().getId().equals(usuarioActual.getId())) {
-                        System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó rastrear paquete de usuario " + paquete.getUsuario().getId());
-                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para rastrear este paquete");
-                    }
-                    System.out.println("✅ Acceso autorizado: Paquete pertenece al cliente");
-                }
-            }
+        // 🔒 VERIFICACIÓN IDOR: Obtener usuario y comprobar propiedad
+        Usuario usuarioActual = usuarioRepo.findById(usuarioId).orElse(null);
+        
+        if (usuarioActual == null) {
+            System.out.println("❌ [SEGURIDAD] Usuario no encontrado en BD: " + usuarioId);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado");
         }
         
+        String rol = usuarioActual.getRol().toUpperCase();
+        
+        // ADMIN y OPERADOR tienen acceso total
+        if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
+            System.out.println("✅ Acceso autorizado: Usuario " + rol);
+            System.out.println("✅ Paquete encontrado: " + paquete.getTrackingNumber());
+            return paquete;
+        }
+        
+        // CLIENTE: Solo puede ver sus propios paquetes
+        if (!paquete.getUsuario().getId().equals(usuarioActual.getId())) {
+            System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó rastrear paquete de usuario " + paquete.getUsuario().getId());
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para rastrear este paquete");
+        }
+        
+        System.out.println("✅ Acceso autorizado: Paquete pertenece al cliente");
         System.out.println("✅ Paquete encontrado: " + paquete.getTrackingNumber());
         return paquete;
     }

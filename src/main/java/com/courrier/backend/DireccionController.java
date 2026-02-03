@@ -54,6 +54,12 @@ public class DireccionController {
         
         System.out.println("🔎 [GET /api/direcciones/" + id + "] Buscando dirección por ID: " + id + " - Usuario autenticado: " + usuarioId);
         
+        // 🔒 VALIDACIÓN CRÍTICA: Rechazar si falta usuario autenticado
+        if (usuarioId == null) {
+            System.out.println("❌ [SEGURIDAD] Usuario no autenticado - falta X-Usuario-Id");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "❌ Token requerido: Envía X-Usuario-Id en header o usuarioActualId en query");
+        }
+        
         var direccionOpt = direccionService.obtenerPorId(id);
         if (!direccionOpt.isPresent()) {
             return ResponseEntity.notFound().build();
@@ -61,30 +67,29 @@ public class DireccionController {
         
         Direccion direccion = direccionOpt.get();
         
-        // 🔒 VERIFICACIÓN IDOR: Comprobar propiedad del recurso
-        if (usuarioId != null) {
-            Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
-            
-            if (usuarioActual != null) {
-                String rol = usuarioActual.getRol().toUpperCase();
-                
-                // ADMIN y OPERADOR tienen acceso total
-                if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
-                    System.out.println("✅ Acceso autorizado: Usuario " + rol);
-                    return ResponseEntity.ok(direccion);
-                }
-                
-                // CLIENTE: Solo puede ver sus propias direcciones
-                if (rol.equals("CLIENTE")) {
-                    if (!direccion.getUsuario().getId().equals(usuarioActual.getId())) {
-                        System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó acceder a dirección de usuario " + direccion.getUsuario().getId());
-                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver esta dirección");
-                    }
-                    System.out.println("✅ Acceso autorizado: Dirección pertenece al cliente");
-                }
-            }
+        // 🔒 VERIFICACIÓN IDOR: Obtener usuario y comprobar propiedad
+        Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
+        
+        if (usuarioActual == null) {
+            System.out.println("❌ [SEGURIDAD] Usuario no encontrado en BD: " + usuarioId);
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado");
         }
         
+        String rol = usuarioActual.getRol().toUpperCase();
+        
+        // ADMIN y OPERADOR tienen acceso total
+        if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
+            System.out.println("✅ Acceso autorizado: Usuario " + rol);
+            return ResponseEntity.ok(direccion);
+        }
+        
+        // CLIENTE: Solo puede ver sus propias direcciones
+        if (!direccion.getUsuario().getId().equals(usuarioActual.getId())) {
+            System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó acceder a dirección de usuario " + direccion.getUsuario().getId());
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver esta dirección");
+        }
+        
+        System.out.println("✅ Acceso autorizado: Dirección pertenece al cliente");
         return ResponseEntity.ok(direccion);
     }
 
