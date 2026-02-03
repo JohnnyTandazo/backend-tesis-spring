@@ -96,11 +96,27 @@ public class PaqueteController extends BaseSecurityController {
             p.setDescripcion("Compra en " + (tienda != null ? tienda : "General"));
         }
         
-        // 2. PRECIO: Captura el valor declarado.
+        // 2. PRECIO: Pre-alerta NO debe cobrar. Precio inicial = 0.0
+        // Si el frontend envía un valor declarado, solo lo registramos en logs.
         if (payload.get("precio") != null) {
-            p.setPrecio(Double.valueOf(payload.get("precio").toString()));
+            System.out.println("   ⚠️ Precio declarado recibido en pre-alerta: " + payload.get("precio") + " (no se cobra aún)");
+        }
+        p.setPrecio(0.0);
+        
+        // 2b. TIPO DE ENVÍO: Nacional vs Internacional
+        String origen = payload.get("origen") != null ? payload.get("origen").toString() : null;
+        String tipoEnvioPayload = payload.get("tipoEnvio") != null ? payload.get("tipoEnvio").toString() : null;
+        String indicador = (origen != null ? origen : tipoEnvioPayload);
+        if (indicador != null) {
+            String valor = indicador.trim().toUpperCase();
+            if (valor.equals("LOCAL") || valor.equals("NACIONAL")) {
+                p.setTipoEnvio(Paquete.TipoEnvio.NACIONAL);
+            } else {
+                p.setTipoEnvio(Paquete.TipoEnvio.INTERNACIONAL);
+            }
         } else {
-            p.setPrecio(0.0);
+            // Por defecto, mantener INTERNACIONAL para importaciones
+            p.setTipoEnvio(Paquete.TipoEnvio.INTERNACIONAL);
         }
         
         // 3. PESO: Se mantiene en 0.0 (Lo pondrá el Operador al pesar la caja en Miami).
@@ -221,7 +237,7 @@ public class PaqueteController extends BaseSecurityController {
             System.out.println("   🧮 [CALCULADORA AUTOMÁTICA] Calculando precio de flete...");
             
             Double tarifaBase = 10.00;      // Tarifa base por envío
-            Double costoPorLibra = 2.50;    // $2.50 por libra
+            Double costoPorLibra = 5.00;    // $5.00 por libra
             Double precioEnvio = tarifaBase + (paquete.getPesoLibras() * costoPorLibra);
             
             paquete.setPrecio(precioEnvio);
@@ -254,7 +270,7 @@ public class PaqueteController extends BaseSecurityController {
             // 🧮 CÁLCULO OBLIGATORIO DEL COSTO DE ENVÍO
             // ════════════════════════════════════════════════════════════
             Double tarifaBase = 10.00;
-            Double costoPorLibra = 2.50;
+            Double costoPorLibra = 5.00;
             Double costoCalculado = tarifaBase + (paqueteActualizado.getPesoLibras() * costoPorLibra);
             
             System.out.println("\n   🧮 [CÁLCULO DE COSTO DE ENVÍO]");

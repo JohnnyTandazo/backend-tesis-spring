@@ -1,7 +1,9 @@
 package com.courrier.backend;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -74,6 +76,47 @@ public class FacturaController extends BaseSecurityController {
             System.out.println("❌ Error: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.ok(List.of());
+        }
+    }
+
+    /**
+     * GET /api/facturas/{id}/pdf
+     * Endpoint de demo para PDF de factura (devuelve PDF vacío si no se genera)
+     * 🔒 SEGURIDAD: Requiere JWT válido + Verifica propiedad (IDOR)
+     */
+    @GetMapping("/{id}/pdf")
+    public ResponseEntity<byte[]> obtenerPdfFactura(@PathVariable Long id) {
+        System.out.println("📄 [GET /api/facturas/" + id + "/pdf] PETICIÓN RECIBIDA");
+
+        try {
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
+            Optional<Factura> facturaOpt = facturaService.obtenerPorId(id);
+            if (facturaOpt.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Factura factura = facturaOpt.get();
+
+            // 🔒 IDOR: CLIENTE solo puede ver su propia factura
+            String rol = usuarioActual.getRol().toUpperCase();
+            if (!"ADMIN".equals(rol) && !"OPERADOR".equals(rol) &&
+                (factura.getUsuario() == null || !factura.getUsuario().getId().equals(usuarioActual.getId()))) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver esta factura");
+            }
+
+            byte[] pdfBytes = new byte[0];
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"factura-" + id + ".pdf\"");
+            headers.setContentLength(pdfBytes.length);
+
+            return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            System.out.println("❌ Error al generar PDF: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 

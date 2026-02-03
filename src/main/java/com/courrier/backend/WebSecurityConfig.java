@@ -62,6 +62,9 @@ public class WebSecurityConfig {
                 .requestMatchers("/api/usuarios/registro").permitAll()
                 .requestMatchers("/api/usuarios/crear").permitAll()
                 .requestMatchers("/error").permitAll()
+
+                // 🟢 ENDPOINTS CLIENTE/ADMIN
+                .requestMatchers("/api/direcciones/**").hasAnyAuthority("ROLE_CLIENTE", "ROLE_ADMIN", "CLIENTE", "ADMIN")
                 
                 // 🔴 TODO LO DEMÁS REQUIERE JWT VÁLIDO
                 .anyRequest().authenticated()
