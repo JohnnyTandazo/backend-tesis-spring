@@ -7,7 +7,11 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -22,6 +26,12 @@ public class FacturaController extends BaseSecurityController {
 
     @Autowired
     private FacturaService facturaService;
+
+    @Autowired
+    private PdfService pdfService;
+
+    @Autowired
+    private DireccionRepository direccionRepository;
 
     /**
      * GET /api/facturas/pendientes
@@ -105,7 +115,51 @@ public class FacturaController extends BaseSecurityController {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver esta factura");
             }
 
-            byte[] pdfBytes = new byte[0];
+            // Buscar dirección en Miami del usuario (si existe)
+            String direccionMiami = "N/A";
+            String locker = "N/A";
+            if (factura.getUsuario() != null) {
+                var direccionOpt = direccionRepository.findByUsuarioId(factura.getUsuario().getId())
+                        .stream()
+                        .findFirst();
+                if (direccionOpt.isPresent()) {
+                    Direccion dir = direccionOpt.get();
+                    direccionMiami = dir.getCallePrincipal() + ", " + dir.getCiudad();
+                    locker = dir.getAlias();
+                }
+            }
+
+            // Calcular totales
+            DecimalFormat df = new DecimalFormat("#.00");
+            double subtotal = factura.getMonto();
+            double impuestos = subtotal * 0.20;
+            double total = subtotal + impuestos;
+
+            // Crear items
+            List<Map<String, Object>> items = new ArrayList<>();
+            Map<String, Object> item = new HashMap<>();
+            item.put("descripcion", factura.getDescripcion() != null ? factura.getDescripcion() : "Servicio de importación");
+            item.put("peso", factura.getEnvio() != null && factura.getEnvio().getPesoLibras() != null ? factura.getEnvio().getPesoLibras() : 0.0);
+            item.put("precioUnitario", 15.00);
+            item.put("total", factura.getMonto());
+            items.add(item);
+
+            // Preparar datos para la plantilla
+            Map<String, Object> datos = new HashMap<>();
+            datos.put("numeroFactura", "FCT-" + String.format("%05d", id));
+            datos.put("clienteNombre", factura.getUsuario() != null ? factura.getUsuario().getNombre() : "N/A");
+            datos.put("direccionMiami", direccionMiami);
+            datos.put("locker", locker);
+            datos.put("fechaEmision", factura.getFechaEmision().toString());
+            datos.put("items", items);
+            datos.put("subtotal", subtotal);
+            datos.put("impuestos", impuestos);
+            datos.put("total", total);
+            datos.put("estado", factura.getEstado());
+
+            System.out.println("✅ [FacturaController] Datos preparados. Total: $" + df.format(total));
+
+            byte[] pdfBytes = pdfService.generarPdf("factura-importacion", datos);
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_PDF);
             headers.add(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"factura-" + id + ".pdf\"");
