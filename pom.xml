@@ -39,6 +39,12 @@
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
 		
+		<!-- 🔒 SEGURIDAD: Spring Security para JWT y autenticación -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+		
 		<!-- Thymeleaf para plantillas HTML -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

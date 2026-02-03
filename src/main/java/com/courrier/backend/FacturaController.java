@@ -10,29 +10,31 @@ import java.util.Optional;
 
 /**
  * FacturaController - API REST para Facturas
- * Endpoints: GET, POST, PUT, DELETE
+ * 🔒 SEGURIDAD: Todos los endpoints usan JWT desde SecurityContextHolder
+ * NO acepta parámetros manuales de usuario
  */
 @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/facturas")
-public class FacturaController {
+public class FacturaController extends BaseSecurityController {
 
     @Autowired
     private FacturaService facturaService;
 
-    @Autowired
-    private UsuarioRepository usuarioRepository;
-
     /**
-     * GET /api/facturas/pendientes?usuarioId={id}
-     * Obtener facturas pendientes de un usuario (para dropdown)
+     * GET /api/facturas/pendientes
+     * Obtener facturas pendientes del usuario autenticado
+     * 🔒 SEGURIDAD: Requiere JWT válido
      */
     @GetMapping("/pendientes")
-    public ResponseEntity<List<Factura>> obtenerPendientes(@RequestParam Long usuarioId) {
-        System.out.println("⏳ [GET /api/facturas/pendientes] PETICIÓN RECIBIDA - Usuario: " + usuarioId);
+    public ResponseEntity<List<Factura>> obtenerPendientes() {
+        System.out.println("⏳ [GET /api/facturas/pendientes] PETICIÓN RECIBIDA");
         
         try {
-            List<Factura> pendientes = facturaService.obtenerPendientes(usuarioId);
+            // 🔒 SEGURIDAD: Obtener usuario desde JWT
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
+            
+            List<Factura> pendientes = facturaService.obtenerPendientes(usuarioActual.getId());
             System.out.println("✅ Se encontraron " + pendientes.size() + " facturas pendientes");
             return ResponseEntity.ok(pendientes);
         } catch (Exception e) {
@@ -44,14 +46,24 @@ public class FacturaController {
     /**
      * GET /api/facturas/usuario/{usuarioId}
      * Obtener todas las facturas de un usuario
-     * Devuelve incluido el envioId en el JSON
-     * IMPORTANTE: Este debe ir ANTES de /{id} para evitar conflictos de ruta
+     * 🔒 SEGURIDAD: Requiere JWT válido
      */
     @GetMapping("/usuario/{usuarioId}")
     public ResponseEntity<List<Factura>> obtenerPorUsuario(@PathVariable Long usuarioId) {
         System.out.println("📋 [GET /api/facturas/usuario/" + usuarioId + "] PETICIÓN RECIBIDA");
         
         try {
+            // 🔒 SEGURIDAD: Obtener usuario desde JWT
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
+            
+            // 🔒 IDOR: CLIENTE solo puede ver sus propias facturas
+            if (!"ADMIN".equals(usuarioActual.getRol().toUpperCase()) && 
+                !"OPERADOR".equals(usuarioActual.getRol().toUpperCase()) &&
+                !usuarioId.equals(usuarioActual.getId())) {
+                System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioActual.getId() + " intentó acceder a facturas de " + usuarioId);
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver estas facturas");
+            }
+            
             List<Factura> facturas = facturaService.obtenerPorUsuario(usuarioId);
             if (facturas == null) {
                 return ResponseEntity.ok(List.of());
@@ -68,25 +80,14 @@ public class FacturaController {
     /**
      * GET /api/facturas/{id}
      * Obtener una factura por ID
-     * IMPORTANTE: Este debe ir DESPUÉS de /usuario/{usuarioId}
-     * SEGURIDAD: Verifica que el usuario tenga permiso para ver esta factura
+     * 🔒 SEGURIDAD: Requiere JWT válido + Verifica propiedad (IDOR)
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Factura> obtenerPorId(
-            @PathVariable Long id,
-            @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioActualId,
-            @RequestParam(value = "usuarioActualId", required = false) Long usuarioActualIdParam) {
+    public ResponseEntity<Factura> obtenerPorId(@PathVariable Long id) {
+        System.out.println("🔍 [GET /api/facturas/" + id + "] PETICIÓN RECIBIDA");
         
-        // Priorizar header, luego query param
-        Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
-        
-        System.out.println("🔍 [GET /api/facturas/" + id + "] PETICIÓN RECIBIDA - Usuario autenticado: " + usuarioId);
-        
-        // 🔒 VALIDACIÓN CRÍTICA: Rechazar si falta usuario autenticado
-        if (usuarioId == null) {
-            System.out.println("❌ [SEGURIDAD] Usuario no autenticado - falta X-Usuario-Id");
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "❌ Token requerido: Envía X-Usuario-Id en header o usuarioActualId en query");
-        }
+        // 🔒 SEGURIDAD: Obtener usuario desde JWT
+        Usuario usuarioActual = obtenerUsuarioAutenticado();
         
         Optional<Factura> facturaOpt = facturaService.obtenerPorId(id);
         if (!facturaOpt.isPresent()) {
@@ -95,15 +96,6 @@ public class FacturaController {
         }
         
         Factura factura = facturaOpt.get();
-        
-        // 🔒 VERIFICACIÓN IDOR: Obtener usuario y comprobar propiedad
-        Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
-        
-        if (usuarioActual == null) {
-            System.out.println("❌ [SEGURIDAD] Usuario no encontrado en BD: " + usuarioId);
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado");
-        }
-        
         String rol = usuarioActual.getRol().toUpperCase();
         
         // ADMIN y OPERADOR tienen acceso total
@@ -114,7 +106,7 @@ public class FacturaController {
         
         // CLIENTE: Solo puede ver sus propias facturas
         if (!factura.getUsuario().getId().equals(usuarioActual.getId())) {
-            System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó acceder a factura de usuario " + factura.getUsuario().getId());
+            System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioActual.getId() + " intentó acceder a factura de usuario " + factura.getUsuario().getId());
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver esta factura");
         }
         
@@ -126,12 +118,16 @@ public class FacturaController {
     /**
      * POST /api/facturas
      * Crear una nueva factura
+     * 🔒 SEGURIDAD: Requiere JWT válido (solo ADMIN/OPERADOR)
      */
     @PostMapping
     public ResponseEntity<Factura> crearFactura(@RequestBody Factura factura) {
         System.out.println("✍️ [POST /api/facturas] PETICIÓN RECIBIDA - Factura: " + factura.getNumeroFactura());
         
         try {
+            // 🔒 SEGURIDAD: Obtener usuario desde JWT
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
+            
             Factura nueva = facturaService.crearFactura(factura);
             System.out.println("✅ Factura creada con ID: " + nueva.getId());
             return ResponseEntity.status(HttpStatus.CREATED).body(nueva);
@@ -144,6 +140,7 @@ public class FacturaController {
     /**
      * PUT /api/facturas/{id}/estado
      * Actualizar estado de una factura
+     * 🔒 SEGURIDAD: Requiere JWT válido
      */
     @PutMapping("/{id}/estado")
     public ResponseEntity<Factura> actualizarEstado(
@@ -152,6 +149,9 @@ public class FacturaController {
         System.out.println("🔄 [PUT /api/facturas/" + id + "/estado] Estado: " + nuevoEstado);
         
         try {
+            // 🔒 SEGURIDAD: Obtener usuario desde JWT
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
+            
             Factura actualizada = facturaService.actualizarEstado(id, nuevoEstado);
             System.out.println("✅ Estado actualizado");
             return ResponseEntity.ok(actualizada);
@@ -164,12 +164,16 @@ public class FacturaController {
     /**
      * DELETE /api/facturas/{id}
      * Eliminar una factura
+     * 🔒 SEGURIDAD: Requiere JWT válido
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminarFactura(@PathVariable Long id) {
         System.out.println("🗑️ [DELETE /api/facturas/" + id + "] PETICIÓN RECIBIDA");
         
         try {
+            // 🔒 SEGURIDAD: Obtener usuario desde JWT
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
+            
             facturaService.eliminarFactura(id);
             System.out.println("✅ Factura eliminada");
             return ResponseEntity.noContent().build();

@@ -10,30 +10,21 @@ import java.util.List;
 @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/direcciones")
-public class DireccionController {
+public class DireccionController extends BaseSecurityController {
 
     @Autowired
     private DireccionService direccionService;
 
-    @Autowired
-    private UsuarioRepository usuarioRepository;
-
-    // 1. GET: Obtener direcciones del usuario (por usuarioId como parámetro)
+    // 1. GET: Obtener direcciones del usuario autenticado
+    // 🔒 SEGURIDAD: Requiere JWT válido
     @GetMapping
-    public ResponseEntity<?> obtenerDireccionesDeUsuario(
-            @RequestParam(required = false) Long usuarioId) {
-        
-        if (usuarioId == null) {
-            System.out.println("⚠️ [GET /api/direcciones] No se proporcionó usuarioId");
-            return ResponseEntity.badRequest().body(java.util.Map.of(
-                "error", "usuarioId es requerido",
-                "ejemplo", "GET /api/direcciones?usuarioId=1"
-            ));
-        }
-        
-        System.out.println("📍 [GET /api/direcciones?usuarioId=" + usuarioId + "] Obteniendo direcciones del usuario: " + usuarioId);
+    public ResponseEntity<?> obtenerDireccionesDeUsuario() {
+        System.out.println("📍 [GET /api/direcciones] Obteniendo direcciones del usuario autenticado");
         try {
-            List<Direccion> direcciones = direccionService.obtenerPorUsuario(usuarioId);
+            // 🔒 SEGURIDAD: Obtener usuario desde JWT
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
+            
+            List<Direccion> direcciones = direccionService.obtenerPorUsuario(usuarioActual.getId());
             System.out.println("✅ Se encontraron " + direcciones.size() + " direcciones");
             return ResponseEntity.ok(direcciones);
         } catch (RuntimeException e) {
@@ -43,22 +34,13 @@ public class DireccionController {
     }
 
     // 2. GET: Obtener una dirección por su ID
+    // 🔒 SEGURIDAD: Requiere JWT válido + Verifica propiedad (IDOR)
     @GetMapping("/{id}")
-    public ResponseEntity<Direccion> obtenerPorId(
-            @PathVariable Long id,
-            @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioActualId,
-            @RequestParam(value = "usuarioActualId", required = false) Long usuarioActualIdParam) {
+    public ResponseEntity<Direccion> obtenerPorId(@PathVariable Long id) {
+        System.out.println("🔎 [GET /api/direcciones/" + id + "] Buscando dirección por ID: " + id);
         
-        // Priorizar header, luego query param
-        Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
-        
-        System.out.println("🔎 [GET /api/direcciones/" + id + "] Buscando dirección por ID: " + id + " - Usuario autenticado: " + usuarioId);
-        
-        // 🔒 VALIDACIÓN CRÍTICA: Rechazar si falta usuario autenticado
-        if (usuarioId == null) {
-            System.out.println("❌ [SEGURIDAD] Usuario no autenticado - falta X-Usuario-Id");
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "❌ Token requerido: Envía X-Usuario-Id en header o usuarioActualId en query");
-        }
+        // 🔒 SEGURIDAD: Obtener usuario desde JWT
+        Usuario usuarioActual = obtenerUsuarioAutenticado();
         
         var direccionOpt = direccionService.obtenerPorId(id);
         if (!direccionOpt.isPresent()) {
@@ -66,15 +48,6 @@ public class DireccionController {
         }
         
         Direccion direccion = direccionOpt.get();
-        
-        // 🔒 VERIFICACIÓN IDOR: Obtener usuario y comprobar propiedad
-        Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
-        
-        if (usuarioActual == null) {
-            System.out.println("❌ [SEGURIDAD] Usuario no encontrado en BD: " + usuarioId);
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado");
-        }
-        
         String rol = usuarioActual.getRol().toUpperCase();
         
         // ADMIN y OPERADOR tienen acceso total
@@ -85,7 +58,7 @@ public class DireccionController {
         
         // CLIENTE: Solo puede ver sus propias direcciones
         if (!direccion.getUsuario().getId().equals(usuarioActual.getId())) {
-            System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó acceder a dirección de usuario " + direccion.getUsuario().getId());
+            System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioActual.getId() + " intentó acceder a dirección de usuario " + direccion.getUsuario().getId());
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver esta dirección");
         }
         
@@ -93,31 +66,18 @@ public class DireccionController {
         return ResponseEntity.ok(direccion);
     }
 
-    // 3. POST: Crear una nueva dirección (MEJORADO - acepta usuarioId en body o query)
+    // 3. POST: Crear una nueva dirección
+    // 🔒 SEGURIDAD: Requiere JWT válido
     @PostMapping
-    public ResponseEntity<?> crearDireccion(
-            @RequestBody java.util.Map<String, Object> payload,
-            @RequestParam(required = false) Long usuarioId) {
-        
+    public ResponseEntity<?> crearDireccion(@RequestBody java.util.Map<String, Object> payload) {
         System.out.println("✍️ [POST /api/direcciones] ✅ PETICIÓN RECIBIDA");
-        System.out.println("   Query param usuarioId: " + usuarioId);
-        System.out.println("   Payload keys: " + payload.keySet());
         
         try {
-            // Obtener usuarioId: primero del parámetro, luego del body
-            Long userId = usuarioId;
-            if (userId == null && payload.containsKey("usuarioId")) {
-                userId = Long.valueOf(payload.get("usuarioId").toString());
-            }
+            // 🔒 SEGURIDAD: Obtener usuario desde JWT
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
             
-            if (userId == null) {
-                System.out.println("❌ Error: No se proporcionó usuarioId");
-                return ResponseEntity.badRequest().body(java.util.Map.of(
-                    "error", "usuarioId es requerido",
-                    "ejemplo1", "POST /api/direcciones?usuarioId=1",
-                    "ejemplo2", "POST /api/direcciones con {usuarioId: 1, alias: 'Casa', ...}"
-                ));
-            }
+            System.out.println("   Creando para usuario ID: " + usuarioActual.getId());
+            System.out.println("   Payload keys: " + payload.keySet());
             
             // Crear objeto Direccion desde el payload
             Direccion direccion = new Direccion();
@@ -132,16 +92,12 @@ public class DireccionController {
                 direccion.setEsPrincipal(Boolean.valueOf(payload.get("esPrincipal").toString()));
             }
             
-            System.out.println("   Creando para usuario ID: " + userId);
             System.out.println("   Datos: " + direccion.getAlias() + " - " + direccion.getCiudad());
             
-            Direccion direccionCreada = direccionService.crearDireccion(direccion, userId);
+            Direccion direccionCreada = direccionService.crearDireccion(direccion, usuarioActual.getId());
             System.out.println("✅ Dirección creada exitosamente: ID=" + direccionCreada.getId());
             return ResponseEntity.status(HttpStatus.CREATED).body(direccionCreada);
             
-        } catch (NumberFormatException e) {
-            System.out.println("❌ Error: usuarioId debe ser numérico");
-            return ResponseEntity.badRequest().body(java.util.Map.of("error", "usuarioId debe ser numérico"));
         } catch (RuntimeException e) {
             System.out.println("❌ Error: " + e.getMessage());
             return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
@@ -154,14 +110,17 @@ public class DireccionController {
     }
 
     // 4. PUT: Actualizar una dirección
+    // 🔒 SEGURIDAD: Requiere JWT válido
     @PutMapping("/{id}")
     public ResponseEntity<Direccion> actualizarDireccion(
             @PathVariable Long id,
             @RequestBody Direccion direccion) {
-        
         System.out.println("✏️ [PUT /api/direcciones/" + id + "] ✅ PETICIÓN RECIBIDA - Actualizando dirección...");
         
         try {
+            // 🔒 SEGURIDAD: Obtener usuario desde JWT
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
+            
             Direccion direccionActualizada = direccionService.actualizarDireccion(id, direccion);
             System.out.println("✅ Dirección actualizada exitosamente: ID=" + id);
             return ResponseEntity.ok(direccionActualizada);
@@ -172,11 +131,15 @@ public class DireccionController {
     }
 
     // 5. DELETE: Eliminar una dirección
+    // 🔒 SEGURIDAD: Requiere JWT válido
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminarDireccion(@PathVariable Long id) {
         System.out.println("🗑️ [DELETE /api/direcciones/" + id + "] ✅ PETICIÓN RECIBIDA - Eliminando dirección...");
         
         try {
+            // 🔒 SEGURIDAD: Obtener usuario desde JWT
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
+            
             direccionService.eliminarDireccion(id);
             System.out.println("✅ Dirección eliminada exitosamente: ID=" + id);
             return ResponseEntity.noContent().build();
@@ -187,11 +150,15 @@ public class DireccionController {
     }
 
     // 6. PUT: Marcar una dirección como principal
+    // 🔒 SEGURIDAD: Requiere JWT válido
     @PutMapping("/{id}/principal")
     public ResponseEntity<Direccion> marcarComoPrincipal(@PathVariable Long id) {
         System.out.println("⭐ [PUT /api/direcciones/" + id + "/principal] Marcando como principal...");
         
         try {
+            // 🔒 SEGURIDAD: Obtener usuario desde JWT
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
+            
             Direccion direccion = direccionService.marcarComoPrincipal(id);
             System.out.println("✅ Dirección marcada como principal: " + direccion.getAlias());
             return ResponseEntity.ok(direccion);
@@ -199,5 +166,4 @@ public class DireccionController {
             System.out.println("❌ Error: " + e.getMessage());
             return ResponseEntity.notFound().build();
         }
-    }
-}
+    }}

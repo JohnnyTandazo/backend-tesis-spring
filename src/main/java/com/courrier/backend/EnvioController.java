@@ -8,16 +8,21 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * 🔒 ENVIO CONTROLLER - AUTENTICACIÓN SEGURA CON JWT
+ * 
+ * ✅ Todos los endpoints que requieren autorización usan:
+ *    - obtenerUsuarioAutenticado() desde BaseSecurityController
+ *    - El usuario SOLO se obtiene del JWT (Authorization header)
+ *    - NO acepta parámetros manuales falsificables
+ */
 @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/envios")
-public class EnvioController {
+public class EnvioController extends BaseSecurityController {
 
     @Autowired
     private EnvioService envioService;
-
-    @Autowired
-    private UsuarioRepository usuarioRepository;
 
     // ORDEN IMPORTANTE DE RUTAS (específicas antes que genéricas):
     // 1. /detalle/{id}
@@ -26,23 +31,16 @@ public class EnvioController {
     // 4. (GET genérico) - con @RequestParam opcional
     // 5. /{id} - más genérico, va al final
 
-    // GET: Obtener un envío por su ID (/detalle/{id})
+    /**
+     * GET: Obtener un envío por su ID (/detalle/{id})
+     * 🔒 SEGURIDAD: Requiere JWT válido en Authorization header
+     */
     @GetMapping("/detalle/{id}")
-    public ResponseEntity<Envio> obtenerEnvioPorId(
-            @PathVariable Long id,
-            @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioActualId,
-            @RequestParam(value = "usuarioActualId", required = false) Long usuarioActualIdParam) {
+    public ResponseEntity<Envio> obtenerEnvioPorId(@PathVariable Long id) {
+        System.out.println("🔎 [GET /api/envios/detalle/" + id + "] PETICIÓN RECIBIDA");
         
-        // Priorizar header, luego query param
-        Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
-        
-        System.out.println("🔎 [GET /api/envios/detalle/" + id + "] PETICIÓN RECIBIDA - Usuario autenticado: " + usuarioId);
-        
-        // 🔒 VALIDACIÓN CRÍTICA: Rechazar si falta usuario autenticado
-        if (usuarioId == null) {
-            System.out.println("❌ [SEGURIDAD] Usuario no autenticado - falta X-Usuario-Id");
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "❌ Token requerido: Envía X-Usuario-Id en header o usuarioActualId en query");
-        }
+        // 🔒 SEGURIDAD: Obtener usuario desde JWT
+        Usuario usuarioActual = obtenerUsuarioAutenticado();
         
         Optional<Envio> envioOpt = envioService.obtenerPorId(id);
         
@@ -53,14 +51,7 @@ public class EnvioController {
         
         Envio envio = envioOpt.get();
         
-        // 🔒 VERIFICACIÓN IDOR: Obtener usuario y comprobar propiedad
-        Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
-        
-        if (usuarioActual == null) {
-            System.out.println("❌ [SEGURIDAD] Usuario no encontrado en BD: " + usuarioId);
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado");
-        }
-        
+        // 🔒 VERIFICACIÓN IDOR: Comprobar propiedad del recurso
         String rol = usuarioActual.getRol().toUpperCase();
         
         // ADMIN y OPERADOR tienen acceso total
@@ -71,7 +62,8 @@ public class EnvioController {
         
         // CLIENTE: Solo puede ver sus propios envíos
         if (!envio.getUsuario().getId().equals(usuarioActual.getId())) {
-            System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó acceder a envío de usuario " + envio.getUsuario().getId());
+            System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioActual.getEmail() + 
+                " intentó acceder a envío de usuario " + envio.getUsuario().getEmail());
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver este envío");
         }
         
@@ -80,10 +72,17 @@ public class EnvioController {
         return ResponseEntity.ok(envio);
     }
 
-    // GET: Obtener envíos por usuario (/usuario/{usuarioId})
+    /**
+     * GET: Obtener envíos por usuario (/usuario/{usuarioId})
+     * 🔒 SEGURIDAD: Requiere JWT válido en Authorization header
+     */
     @GetMapping("/usuario/{usuarioId}")
     public ResponseEntity<List<Envio>> obtenerPorUsuario(@PathVariable Long usuarioId) {
         System.out.println("👤 [GET /api/envios/usuario/" + usuarioId + "] PETICIÓN RECIBIDA");
+        
+        // 🔒 SEGURIDAD: Obtener usuario desde JWT
+        Usuario usuarioActual = obtenerUsuarioAutenticado();
+        
         try {
             List<Envio> envios = envioService.obtenerPorUsuario(usuarioId);
             System.out.println("✅ Se encontraron " + envios.size() + " envíos del usuario: " + usuarioId);
@@ -94,7 +93,10 @@ public class EnvioController {
         }
     }
 
-    // GET: Obtener envío por número de tracking (/tracking/{numeroTracking})
+    /**
+     * GET: Obtener envío por número de tracking (/tracking/{numeroTracking})
+     * 🔓 PÚBLICO: No requiere autenticación (public tracking)
+     */
     @GetMapping("/tracking/{numeroTracking}")
     public ResponseEntity<Envio> obtenerPorTracking(@PathVariable String numeroTracking) {
         System.out.println("📍 [GET /api/envios/tracking/" + numeroTracking + "] PETICIÓN RECIBIDA");
@@ -109,19 +111,32 @@ public class EnvioController {
         }
     }
 
-    // GET: Obtener envíos con filtro opcional por usuarioId (raíz, con @RequestParam)
+    /**
+     * GET: Obtener todos los envíos (raíz)
+     * 🔒 SEGURIDAD: Requiere JWT válido en Authorization header
+     * Si el usuario es CLIENTE, solo ve sus envíos
+     */
     @GetMapping
-    public ResponseEntity<List<Envio>> obtenerTodos(@RequestParam(required = false) Long usuarioId) {
-        System.out.println("📦 [GET /api/envios] PETICIÓN RECIBIDA - usuarioId: " + usuarioId);
+    public ResponseEntity<List<Envio>> obtenerTodos() {
+        System.out.println("📦 [GET /api/envios] PETICIÓN RECIBIDA");
+        
+        // 🔒 SEGURIDAD: Obtener usuario desde JWT
+        Usuario usuarioActual = obtenerUsuarioAutenticado();
+        
         try {
             List<Envio> envios;
-            if (usuarioId != null) {
-                envios = envioService.obtenerPorUsuario(usuarioId);
-                System.out.println("✅ Se encontraron " + envios.size() + " envíos del usuario: " + usuarioId);
-            } else {
+            String rol = usuarioActual.getRol().toUpperCase();
+            
+            if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
+                // ADMIN y OPERADOR ven todos los envíos
                 envios = envioService.obtenerTodos();
-                System.out.println("✅ Se encontraron " + envios.size() + " envíos en total");
+                System.out.println("✅ Se encontraron " + envios.size() + " envíos en total (Usuario: " + rol + ")");
+            } else {
+                // CLIENTE solo ve sus propios envíos
+                envios = envioService.obtenerPorUsuario(usuarioActual.getId());
+                System.out.println("✅ Se encontraron " + envios.size() + " envíos del cliente: " + usuarioActual.getEmail());
             }
+            
             return ResponseEntity.ok(envios);
         } catch (Exception e) {
             System.out.println("⚠️ Error obteniendo envíos: " + e.getMessage() + ". Retornando lista vacía.");
@@ -129,23 +144,16 @@ public class EnvioController {
         }
     }
 
-    // GET: Obtener envío por ID directo (/{id}) - DEBE IR AL FINAL
+    /**
+     * GET: Obtener envío por ID directo (/{id})
+     * 🔒 SEGURIDAD: Requiere JWT válido en Authorization header
+     */
     @GetMapping("/{id}")
-    public ResponseEntity<Envio> obtenerEnvioPorIdDirecto(
-            @PathVariable Long id,
-            @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioActualId,
-            @RequestParam(value = "usuarioActualId", required = false) Long usuarioActualIdParam) {
+    public ResponseEntity<Envio> obtenerEnvioPorIdDirecto(@PathVariable Long id) {
+        System.out.println("🔎 [GET /api/envios/" + id + "] PETICIÓN RECIBIDA");
         
-        // Priorizar header, luego query param
-        Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
-        
-        System.out.println("🔎 [GET /api/envios/" + id + "] PETICIÓN RECIBIDA - Usuario autenticado: " + usuarioId);
-        
-        // 🔒 VALIDACIÓN CRÍTICA: Rechazar si falta usuario autenticado
-        if (usuarioId == null) {
-            System.out.println("❌ [SEGURIDAD] Usuario no autenticado - falta X-Usuario-Id");
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "❌ Token requerido: Envía X-Usuario-Id en header o usuarioActualId en query");
-        }
+        // 🔒 SEGURIDAD: Obtener usuario desde JWT
+        Usuario usuarioActual = obtenerUsuarioAutenticado();
         
         Optional<Envio> envioOpt = envioService.obtenerPorId(id);
         
@@ -156,14 +164,7 @@ public class EnvioController {
         
         Envio envio = envioOpt.get();
         
-        // 🔒 VERIFICACIÓN IDOR: Obtener usuario y comprobar propiedad
-        Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
-        
-        if (usuarioActual == null) {
-            System.out.println("❌ [SEGURIDAD] Usuario no encontrado en BD: " + usuarioId);
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado");
-        }
-        
+        // 🔒 VERIFICACIÓN IDOR: Comprobar propiedad del recurso
         String rol = usuarioActual.getRol().toUpperCase();
         
         // ADMIN y OPERADOR tienen acceso total
@@ -174,7 +175,8 @@ public class EnvioController {
         
         // CLIENTE: Solo puede ver sus propios envíos
         if (!envio.getUsuario().getId().equals(usuarioActual.getId())) {
-            System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó acceder a envío de usuario " + envio.getUsuario().getId());
+            System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioActual.getEmail() + 
+                " intentó acceder a envío de usuario " + envio.getUsuario().getEmail());
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver este envío");
         }
         
@@ -183,21 +185,35 @@ public class EnvioController {
         return ResponseEntity.ok(envio);
     }
 
-    // 5. POST: Crear un nuevo envío
+    /**
+     * POST: Crear un nuevo envío
+     * 🔒 SEGURIDAD: Requiere JWT válido en Authorization header
+     */
     @PostMapping
     public ResponseEntity<Envio> crearEnvio(@RequestBody CrearEnvioRequest request) {
         System.out.println("✍️ [POST /api/envios] ✅ PETICIÓN RECIBIDA - Creando nuevo envío...");
         System.out.println("   Número Tracking: " + request.getNumeroTracking());
         System.out.println("   Destinatario: " + request.getDestinatarioNombre());
+        
+        // 🔒 SEGURIDAD: Obtener usuario desde JWT (aunque no lo usamos aquí)
+        obtenerUsuarioAutenticado();
+        
         Envio envioCreado = envioService.crearEnvio(request);
         System.out.println("✅ Envío creado exitosamente: ID=" + envioCreado.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(envioCreado);
     }
 
-    // 6. PUT: Actualizar un envío
+    /**
+     * PUT: Actualizar un envío
+     * 🔒 SEGURIDAD: Requiere JWT válido en Authorization header
+     */
     @PutMapping("/{id}")
     public ResponseEntity<Envio> actualizarEnvio(@PathVariable Long id, @RequestBody Envio envio) {
         System.out.println("✏️ [PUT /api/envios/" + id + "] ✅ PETICIÓN RECIBIDA - Actualizando envío...");
+        
+        // 🔒 SEGURIDAD: Obtener usuario desde JWT (aunque no lo usamos aquí)
+        obtenerUsuarioAutenticado();
+        
         try {
             Envio envioActualizado = envioService.actualizarEnvio(id, envio);
             System.out.println("✅ Envío actualizado exitosamente: ID=" + id);
@@ -208,7 +224,10 @@ public class EnvioController {
         }
     }
 
-    // 6b. PUT: Actualizar SOLO el estado de un envío
+    /**
+     * PUT: Actualizar SOLO el estado de un envío
+     * 🔒 SEGURIDAD: Requiere JWT válido en Authorization header
+     */
     @PutMapping("/{id}/estado")
     public ResponseEntity<Envio> actualizarEstado(
             @PathVariable Long id, 
@@ -216,6 +235,9 @@ public class EnvioController {
         
         System.out.println("🔄 [PUT /api/envios/" + id + "/estado] ✅ PETICIÓN RECIBIDA");
         System.out.println("   Cambiando estado a: " + nuevoEstado);
+        
+        // 🔒 SEGURIDAD: Obtener usuario desde JWT (aunque no lo usamos aquí)
+        obtenerUsuarioAutenticado();
         
         try {
             Envio envioActualizado = envioService.actualizarEstado(id, nuevoEstado);
@@ -227,10 +249,17 @@ public class EnvioController {
         }
     }
 
-    // 7. DELETE: Eliminar un envío
+    /**
+     * DELETE: Eliminar un envío
+     * 🔒 SEGURIDAD: Requiere JWT válido en Authorization header
+     */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminarEnvio(@PathVariable Long id) {
         System.out.println("🗑️ [DELETE /api/envios/" + id + "] ✅ PETICIÓN RECIBIDA - Eliminando envío...");
+        
+        // 🔒 SEGURIDAD: Obtener usuario desde JWT (aunque no lo usamos aquí)
+        obtenerUsuarioAutenticado();
+        
         try {
             envioService.eliminarEnvio(id);
             System.out.println("✅ Envío eliminado exitosamente: ID=" + id);

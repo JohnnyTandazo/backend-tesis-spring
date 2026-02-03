@@ -12,13 +12,10 @@ import java.util.Map;
 @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/paquetes")
-public class PaqueteController {
+public class PaqueteController extends BaseSecurityController {
 
     @Autowired
     private PaqueteRepository paqueteRepo;
-
-    @Autowired
-    private UsuarioRepository usuarioRepo;
 
     @Autowired
     private FacturaRepository facturaRepo;
@@ -26,13 +23,16 @@ public class PaqueteController {
     /**
      * GET /api/paquetes/todos
      * Obtener TODOS los paquetes (ADMIN ENDPOINT)
-     * Para la Torre de Control - ordenados por fecha
+     * 🔒 SEGURIDAD: Requiere JWT válido
      */
     @GetMapping("/todos")
     public List<Paquete> obtenerTodos() {
         System.out.println("📦 [GET /api/paquetes/todos] ADMIN - Obteniendo TODOS los paquetes...");
         
         try {
+            // 🔒 SEGURIDAD: Obtener usuario desde JWT
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
+            
             List<Paquete> todos = paqueteRepo.findAll();
             System.out.println("✅ Se encontraron " + todos.size() + " paquetes en total");
             
@@ -52,22 +52,33 @@ public class PaqueteController {
     }
 
     // 1. Ver TODOS los paquetes (Para el Admin u Operador)
+    // 🔒 SEGURIDAD: Requiere JWT válido
     @GetMapping
-    public List<Paquete> listarPaquetes(@RequestParam(value = "usuarioId", required = false) Long usuarioId) {
+    public List<Paquete> listarPaquetes() {
         System.out.println("📦 [GET /api/paquetes] Listando paquetes...");
-        if (usuarioId != null) {
-            System.out.println("   🔎 Filtrando por usuarioId: " + usuarioId);
-            return paqueteRepo.findByUsuarioId(usuarioId);
-        } else {
+        
+        // 🔒 SEGURIDAD: Obtener usuario desde JWT
+        Usuario usuarioActual = obtenerUsuarioAutenticado();
+        
+        // Filtrar por usuario si no es ADMIN/OPERADOR
+        String rol = usuarioActual.getRol().toUpperCase();
+        if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
             return paqueteRepo.findAll();
+        } else {
+            // CLIENTE: Solo ver sus propios paquetes
+            return paqueteRepo.findByUsuarioId(usuarioActual.getId());
         }
     }
 
     // 2. Registrar un Paquete nuevo (Pre-Alerta)
+    // 🔒 SEGURIDAD: Requiere JWT válido
     @PostMapping
     public Paquete crearPaquete(@RequestBody Map<String, Object> payload) {
         System.out.println("📝 [POST /api/paquetes] ✅ PETICIÓN RECIBIDA - Creando nuevo paquete...");
         System.out.println("   Datos recibidos: " + payload);
+        
+        // 🔒 SEGURIDAD: Obtener usuario desde JWT
+        Usuario usuarioActual = obtenerUsuarioAutenticado();
         
         Paquete p = new Paquete();
         
@@ -98,11 +109,8 @@ public class PaqueteController {
         // 4. ESTADO: Inicia como PRE_ALERTADO
         p.setEstado("PRE_ALERTADO");
         
-        // 5. USUARIO: Asignación normal
-        Object userIdObj = payload.get("usuarioId");
-        Long usuarioId = userIdObj != null ? Long.valueOf(userIdObj.toString()) : 1L;
-        Usuario u = usuarioRepo.findById(usuarioId).orElseThrow();
-        p.setUsuario(u);
+        // 5. USUARIO: Usa el usuario desde JWT
+        p.setUsuario(usuarioActual);
         
         Paquete paqueteGuardado = paqueteRepo.save(p);
         System.out.println("✅ Paquete guardado exitosamente: ID=" + paqueteGuardado.getId() + ", Tracking=" + paqueteGuardado.getTrackingNumber());
@@ -111,35 +119,18 @@ public class PaqueteController {
     }
     
     // 3. Buscar por Tracking (Para la barra de búsqueda del Home)
+    // 🔒 SEGURIDAD: Requiere JWT válido + Verifica propiedad (IDOR)
     @GetMapping("/rastreo/{tracking}")
-    public Paquete buscarPorTracking(
-            @PathVariable String tracking,
-            @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioActualId,
-            @RequestParam(value = "usuarioActualId", required = false) Long usuarioActualIdParam) {
+    public Paquete buscarPorTracking(@PathVariable String tracking) {
+        System.out.println("🔍 [GET /api/paquetes/rastreo/" + tracking + "] Buscando paquete por tracking");
         
-        // Priorizar header, luego query param
-        Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
-        
-        System.out.println("🔍 [GET /api/paquetes/rastreo/" + tracking + "] Buscando paquete por tracking - Usuario autenticado: " + usuarioId);
-        
-        // 🔒 VALIDACIÓN CRÍTICA: Rechazar si falta usuario autenticado
-        if (usuarioId == null) {
-            System.out.println("❌ [SEGURIDAD] Usuario no autenticado - falta X-Usuario-Id");
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "❌ Token requerido: Envía X-Usuario-Id en header o usuarioActualId en query");
-        }
+        // 🔒 SEGURIDAD: Obtener usuario desde JWT
+        Usuario usuarioActual = obtenerUsuarioAutenticado();
         
         Paquete paquete = paqueteRepo.findByTrackingNumber(tracking);
         
         if (paquete == null) {
             return null;
-        }
-        
-        // 🔒 VERIFICACIÓN IDOR: Obtener usuario y comprobar propiedad
-        Usuario usuarioActual = usuarioRepo.findById(usuarioId).orElse(null);
-        
-        if (usuarioActual == null) {
-            System.out.println("❌ [SEGURIDAD] Usuario no encontrado en BD: " + usuarioId);
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado");
         }
         
         String rol = usuarioActual.getRol().toUpperCase();
@@ -152,7 +143,7 @@ public class PaqueteController {
         
         // CLIENTE: Solo puede ver sus propios paquetes
         if (!paquete.getUsuario().getId().equals(usuarioActual.getId())) {
-            System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó rastrear paquete de usuario " + paquete.getUsuario().getId());
+            System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioActual.getId() + " intentó rastrear paquete de usuario " + paquete.getUsuario().getId());
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para rastrear este paquete");
         }
         
@@ -161,36 +152,19 @@ public class PaqueteController {
     }
 
     // 3b. Buscar por código/tracking (Endpoint alternativo que espera el Frontend)
+    // 🔒 SEGURIDAD: Requiere JWT válido + Verifica propiedad (IDOR)
     @GetMapping("/track/{codigo}")
-    public Paquete buscarPorCodigo(
-            @PathVariable String codigo,
-            @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioActualId,
-            @RequestParam(value = "usuarioActualId", required = false) Long usuarioActualIdParam) {
+    public Paquete buscarPorCodigo(@PathVariable String codigo) {
+        System.out.println("🔍 [GET /api/paquetes/track/" + codigo + "] ✅ PETICIÓN RECIBIDA - Buscando paquete por código: " + codigo);
         
-        // Priorizar header, luego query param
-        Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
-        
-        System.out.println("🔍 [GET /api/paquetes/track/" + codigo + "] ✅ PETICIÓN RECIBIDA - Buscando paquete por código: " + codigo + " - Usuario autenticado: " + usuarioId);
-        
-        // 🔒 VALIDACIÓN CRÍTICA: Rechazar si falta usuario autenticado
-        if (usuarioId == null) {
-            System.out.println("❌ [SEGURIDAD] Usuario no autenticado - falta X-Usuario-Id");
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "❌ Token requerido: Envía X-Usuario-Id en header o usuarioActualId en query");
-        }
+        // 🔒 SEGURIDAD: Obtener usuario desde JWT
+        Usuario usuarioActual = obtenerUsuarioAutenticado();
         
         Paquete paquete = paqueteRepo.findByTrackingNumber(codigo);
         
         if (paquete == null) {
             System.out.println("❌ Paquete NO encontrado para el código: " + codigo);
             return null;
-        }
-        
-        // 🔒 VERIFICACIÓN IDOR: Obtener usuario y comprobar propiedad
-        Usuario usuarioActual = usuarioRepo.findById(usuarioId).orElse(null);
-        
-        if (usuarioActual == null) {
-            System.out.println("❌ [SEGURIDAD] Usuario no encontrado en BD: " + usuarioId);
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado");
         }
         
         String rol = usuarioActual.getRol().toUpperCase();
@@ -204,7 +178,7 @@ public class PaqueteController {
         
         // CLIENTE: Solo puede ver sus propios paquetes
         if (!paquete.getUsuario().getId().equals(usuarioActual.getId())) {
-            System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó rastrear paquete de usuario " + paquete.getUsuario().getId());
+            System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioActual.getId() + " intentó rastrear paquete de usuario " + paquete.getUsuario().getId());
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para rastrear este paquete");
         }
         
@@ -214,10 +188,14 @@ public class PaqueteController {
     }
 
     // 4. Actualizar detalles del paquete (Para el Operador)
+    // 🔒 SEGURIDAD: Requiere JWT válido
     @PutMapping("/{id}/detalles")
     public Paquete actualizarDetallesPaquete(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
         System.out.println("✏️ [PUT /api/paquetes/" + id + "/detalles] ✅ PETICIÓN RECIBIDA - Actualizando paquete...");
         System.out.println("   Datos a actualizar: " + payload);
+        
+        // 🔒 SEGURIDAD: Obtener usuario desde JWT
+        Usuario usuarioActual = obtenerUsuarioAutenticado();
         
         Paquete paquete = paqueteRepo.findById(id).orElseThrow();
 

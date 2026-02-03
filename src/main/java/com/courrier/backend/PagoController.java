@@ -11,12 +11,13 @@ import java.util.Optional;
 
 /**
  * PagoController - API REST para Pagos
- * Endpoints: GET, POST, PUT, DELETE
+ * 🔒 SEGURIDAD: Todos los endpoints usan JWT desde SecurityContextHolder
+ * NO acepta parámetros manuales de usuario
  */
 @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api/pagos")
-public class PagoController {
+public class PagoController extends BaseSecurityController {
 
     @Autowired
     private PagoService pagoService;
@@ -24,19 +25,19 @@ public class PagoController {
     @Autowired
     private FacturaService facturaService;
 
-    @Autowired
-    private UsuarioRepository usuarioRepository;
-
     /**
      * GET /api/pagos/pendientes
      * Obtener TODOS los pagos PENDIENTES (sin filtro de usuario)
-     * ADMIN ENDPOINT: Cajero accede a esta lista
+     * 🔒 SEGURIDAD: ADMIN ENDPOINT - Requiere JWT válido
      */
     @GetMapping("/pendientes")
     public ResponseEntity<List<Pago>> obtenerPendientes() {
         System.out.println("💳 [GET /api/pagos/pendientes] PETICIÓN DEL ADMIN - Listando pagos pendientes...");
         
         try {
+            // 🔒 SEGURIDAD: Obtener usuario desde JWT
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
+            
             List<Pago> pagosPendientes = pagoService.obtenerPendientes();
             System.out.println("✅ Se devuelven " + pagosPendientes.size() + " pagos pendientes");
             return ResponseEntity.ok(pagosPendientes);
@@ -48,16 +49,20 @@ public class PagoController {
     }
 
     /**
-     * GET /api/pagos?usuarioId={id}
-     * Obtener historial de pagos del usuario (query directo con JOIN)
+     * GET /api/pagos
+     * Obtener historial de pagos del usuario autenticado
+     * 🔒 SEGURIDAD: Requiere JWT válido
      */
     @GetMapping
-    public ResponseEntity<List<Pago>> obtenerHistorial(@RequestParam Long usuarioId) {
-        System.out.println("💳 [GET /api/pagos] PETICIÓN RECIBIDA - Usuario: " + usuarioId);
+    public ResponseEntity<List<Pago>> obtenerHistorial() {
+        System.out.println("💳 [GET /api/pagos] PETICIÓN RECIBIDA");
         
         try {
-            List<Pago> pagos = pagoService.obtenerPorUsuario(usuarioId);
-            System.out.println("✅ Se encontraron " + pagos.size() + " pagos del usuario: " + usuarioId);
+            // 🔒 SEGURIDAD: Obtener usuario desde JWT
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
+            
+            List<Pago> pagos = pagoService.obtenerPorUsuario(usuarioActual.getId());
+            System.out.println("✅ Se encontraron " + pagos.size() + " pagos del usuario: " + usuarioActual.getId());
             return ResponseEntity.ok(pagos);
         } catch (Exception e) {
             System.out.println("❌ Error obteniendo pagos: " + e.getMessage());
@@ -69,12 +74,16 @@ public class PagoController {
     /**
      * GET /api/pagos/factura/{facturaId}
      * Obtener pagos de una factura específica
+     * 🔒 SEGURIDAD: Requiere JWT válido
      */
     @GetMapping("/factura/{facturaId}")
     public ResponseEntity<List<Pago>> obtenerPorFactura(@PathVariable Long facturaId) {
         System.out.println("💳 [GET /api/pagos/factura/" + facturaId + "] PETICIÓN RECIBIDA");
         
         try {
+            // 🔒 SEGURIDAD: Obtener usuario desde JWT
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
+            
             List<Pago> pagos = pagoService.obtenerPorFactura(facturaId);
             System.out.println("✅ Se encontraron " + pagos.size() + " pagos para factura: " + facturaId);
             return ResponseEntity.ok(pagos);
@@ -87,24 +96,14 @@ public class PagoController {
     /**
      * GET /api/pagos/{id}
      * Obtener un pago por ID
-     * SEGURIDAD: Verifica que el usuario tenga permiso para ver este pago
+     * 🔒 SEGURIDAD: Requiere JWT válido + Verifica propiedad (IDOR)
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Pago> obtenerPorId(
-            @PathVariable Long id,
-            @RequestHeader(value = "X-Usuario-Id", required = false) Long usuarioActualId,
-            @RequestParam(value = "usuarioActualId", required = false) Long usuarioActualIdParam) {
+    public ResponseEntity<Pago> obtenerPorId(@PathVariable Long id) {
+        System.out.println("🔍 [GET /api/pagos/" + id + "] PETICIÓN RECIBIDA");
         
-        // Priorizar header, luego query param
-        Long usuarioId = usuarioActualId != null ? usuarioActualId : usuarioActualIdParam;
-        
-        System.out.println("🔍 [GET /api/pagos/" + id + "] PETICIÓN RECIBIDA - Usuario autenticado: " + usuarioId);
-        
-        // 🔒 VALIDACIÓN CRÍTICA: Rechazar si falta usuario autenticado
-        if (usuarioId == null) {
-            System.out.println("❌ [SEGURIDAD] Usuario no autenticado - falta X-Usuario-Id");
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "❌ Token requerido: Envía X-Usuario-Id en header o usuarioActualId en query");
-        }
+        // 🔒 SEGURIDAD: Obtener usuario desde JWT
+        Usuario usuarioActual = obtenerUsuarioAutenticado();
         
         Optional<Pago> pagoOpt = pagoService.obtenerPorId(id);
         if (!pagoOpt.isPresent()) {
@@ -113,16 +112,6 @@ public class PagoController {
         }
         
         Pago pago = pagoOpt.get();
-        
-        // 🔒 VERIFICACIÓN IDOR: Obtener usuario y comprobar propiedad
-        // Los pagos pertenecen a una factura, y la factura pertenece a un usuario
-        Usuario usuarioActual = usuarioRepository.findById(usuarioId).orElse(null);
-        
-        if (usuarioActual == null) {
-            System.out.println("❌ [SEGURIDAD] Usuario no encontrado en BD: " + usuarioId);
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado");
-        }
-        
         String rol = usuarioActual.getRol().toUpperCase();
         
         // ADMIN y OPERADOR tienen acceso total
@@ -134,7 +123,7 @@ public class PagoController {
         // CLIENTE: Solo puede ver pagos de sus propias facturas
         Usuario duenioFactura = pago.getFactura().getUsuario();
         if (!duenioFactura.getId().equals(usuarioActual.getId())) {
-            System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioId + " intentó acceder a pago de usuario " + duenioFactura.getId());
+            System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioActual.getId() + " intentó acceder a pago de usuario " + duenioFactura.getId());
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver este pago");
         }
         
@@ -146,6 +135,7 @@ public class PagoController {
     /**
      * POST /api/pagos
      * Registrar un nuevo pago (multipart/form-data)
+     * 🔒 SEGURIDAD: Requiere JWT válido
      */
     @PostMapping
     public ResponseEntity<Pago> registrarPago(
@@ -157,6 +147,9 @@ public class PagoController {
         System.out.println("💰 [POST /api/pagos] PETICIÓN RECIBIDA - Monto: $" + monto);
         
         try {
+            // 🔒 SEGURIDAD: Obtener usuario desde JWT
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
+            
             String comprobanteNombre = (comprobante != null ? comprobante.getOriginalFilename() : null);
             Pago nuevo = pagoService.registrarPago(facturaId, monto, metodoPago, referencia, comprobanteNombre);
             System.out.println("✅ Pago registrado con ID: " + nuevo.getId());
@@ -171,8 +164,7 @@ public class PagoController {
      * PUT /api/pagos/{id}
      * Actualizar estado de un pago (JSON body)
      * Body: { "estado": "APROBADO" }
-     * 
-     * CRÍTICO: Si estado = APROBADO, la factura asociada se marcará como PAGADA
+     * 🔒 SEGURIDAD: Requiere JWT válido
      */
     @PutMapping("/{id}")
     public ResponseEntity<Pago> actualizarPago(
@@ -181,6 +173,9 @@ public class PagoController {
         System.out.println("🔄 [PUT /api/pagos/" + id + "] Nuevo estado: " + request.getEstado());
         
         try {
+            // 🔒 SEGURIDAD: Obtener usuario desde JWT
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
+            
             if (request.getEstado() == null || request.getEstado().trim().isEmpty()) {
                 System.out.println("❌ Error: El campo 'estado' no puede estar vacío");
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
@@ -202,6 +197,7 @@ public class PagoController {
     /**
      * PUT /api/pagos/{id}/estado
      * Actualizar estado de un pago (Query Parameter)
+     * 🔒 SEGURIDAD: Requiere JWT válido
      * Deprecated: Usar PUT /api/pagos/{id} con JSON body
      */
     @Deprecated
@@ -212,6 +208,9 @@ public class PagoController {
         System.out.println("⚠️ [PUT /api/pagos/" + id + "/estado] DEPRECATED - Usar PUT /api/pagos/{id} con JSON");
         
         try {
+            // 🔒 SEGURIDAD: Obtener usuario desde JWT
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
+            
             Pago actualizado = pagoService.actualizarEstado(id, nuevoEstado);
             System.out.println("✅ Estado actualizado a: " + nuevoEstado);
             return ResponseEntity.ok(actualizado);
@@ -224,12 +223,16 @@ public class PagoController {
     /**
      * DELETE /api/pagos/{id}
      * Eliminar un pago (solo si es PENDIENTE)
+     * 🔒 SEGURIDAD: Requiere JWT válido
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminarPago(@PathVariable Long id) {
         System.out.println("🗑️ [DELETE /api/pagos/" + id + "] PETICIÓN RECIBIDA");
         
         try {
+            // 🔒 SEGURIDAD: Obtener usuario desde JWT
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
+            
             Optional<Pago> pago = pagoService.obtenerPorId(id);
             
             if (pago.isPresent() && "PENDIENTE".equals(pago.get().getEstado())) {

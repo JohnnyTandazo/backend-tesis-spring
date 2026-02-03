@@ -14,7 +14,7 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/pdf")
 @CrossOrigin(origins = "*")
-public class PdfController {
+public class PdfController extends BaseSecurityController {
 
     @Autowired
     private PdfService pdfService;
@@ -28,35 +28,18 @@ public class PdfController {
     @Autowired
     private DireccionRepository direccionRepository;
 
-    @Autowired
-    private UsuarioRepository usuarioRepository;
-
     /**
      * Endpoint: GET /api/pdf/guia/{envioId}
      * Genera PDF de Guía de Remisión para un envío nacional
-     * SEGURIDAD: Obtiene usuario del JWT en header Authorization
+     * 🔒 SEGURIDAD: Requiere JWT válido + Verifica propiedad (IDOR)
      */
     @GetMapping("/guia/{envioId}")
-    public ResponseEntity<byte[]> generarGuiaRemision(
-            @PathVariable Long envioId,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public ResponseEntity<byte[]> generarGuiaRemision(@PathVariable Long envioId) {
         try {
             System.out.println("📄 [PdfController] Generando Guía de Remisión para envioId: " + envioId);
 
-            // 🔒 SEGURIDAD: Obtener usuario del JWT
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                System.out.println("❌ [PdfController] Token JWT no encontrado en header Authorization");
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token JWT requerido en header Authorization");
-            }
-
-            // Extraer el email del JWT (NOTA: Esto es una simplificación)
-            // En producción, decodificar el JWT correctamente
-            String token = authHeader.substring(7);
-            System.out.println("   Token recibido: " + token.substring(0, Math.min(20, token.length())) + "...");
-
-            // IMPORTANTE: El frontend debe enviar el email del usuario o implementar JWT parsing correcto
-            // Por ahora, obtenemos desde el contexto de la aplicación
-            // Este es un endpoint protegido que requiere autenticación
+            // 🔒 SEGURIDAD: Obtener usuario desde JWT
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
             
             // Buscar el envío
             Envio envio = envioRepository.findById(envioId).orElse(null);
@@ -68,13 +51,13 @@ public class PdfController {
             System.out.println("✅ Envío encontrado: " + envio.getNumeroTracking());
             System.out.println("✅ Propietario del envío: Usuario ID " + envio.getUsuario().getId());
 
-            // NOTA: Para una protección IDOR completa, necesitas:
-            // 1. Decodificar el JWT para obtener el email del usuario
-            // 2. Buscar el usuario por email
-            // 3. Validar que el usuario es el propietario del envío
-            // 
-            // Por ahora, esto es un endpoint público que genera el PDF
-            // La validación IDOR se debe implementar cuando esté disponible el JWT parsing
+            // 🔒 VERIFICACIÓN IDOR: Validar propiedad
+            String rol = usuarioActual.getRol().toUpperCase();
+            if (!rol.equals("ADMIN") && !rol.equals("OPERADOR") && 
+                !envio.getUsuario().getId().equals(usuarioActual.getId())) {
+                System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioActual.getId() + " intentó generar guía de envío de usuario " + envio.getUsuario().getId());
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para generar guía de este envío");
+            }
 
             // Preparar datos para la plantilla
             Map<String, Object> datos = new HashMap<>();
@@ -118,28 +101,15 @@ public class PdfController {
     /**
      * Endpoint: GET /api/pdf/factura/{facturaId}
      * Genera PDF de Factura de Importación desde USA
-     * SEGURIDAD: Obtiene usuario del JWT en header Authorization
+     * 🔒 SEGURIDAD: Requiere JWT válido + Verifica propiedad (IDOR)
      */
     @GetMapping("/factura/{facturaId}")
-    public ResponseEntity<byte[]> generarFacturaImportacion(
-            @PathVariable Long facturaId,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public ResponseEntity<byte[]> generarFacturaImportacion(@PathVariable Long facturaId) {
         try {
             System.out.println("📄 [PdfController] Generando Factura de Importación para facturaId: " + facturaId);
 
-            // 🔒 SEGURIDAD: Obtener usuario del JWT
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                System.out.println("❌ [PdfController] Token JWT no encontrado en header Authorization");
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token JWT requerido en header Authorization");
-            }
-
-            // Extraer el email del JWT (NOTA: Esto es una simplificación)
-            // En producción, decodificar el JWT correctamente
-            String token = authHeader.substring(7);
-            System.out.println("   Token recibido: " + token.substring(0, Math.min(20, token.length())) + "...");
-
-            // IMPORTANTE: El frontend debe enviar el email del usuario o implementar JWT parsing correcto
-            // Por ahora, obtenemos desde el contexto de la aplicación
+            // 🔒 SEGURIDAD: Obtener usuario desde JWT
+            Usuario usuarioActual = obtenerUsuarioAutenticado();
             
             // Buscar la factura
             Factura factura = facturaRepository.findById(facturaId).orElse(null);
@@ -151,19 +121,19 @@ public class PdfController {
             System.out.println("✅ Factura encontrada: " + factura.getNumeroFactura());
             System.out.println("✅ Propietario de factura: Usuario ID " + factura.getUsuario().getId());
 
-            // NOTA: Para una protección IDOR completa, necesitas:
-            // 1. Decodificar el JWT para obtener el email del usuario
-            // 2. Buscar el usuario por email
-            // 3. Validar que el usuario es el propietario de la factura
-            //
-            // Por ahora, esto es un endpoint público que genera el PDF
-            // La validación IDOR se debe implementar cuando esté disponible el JWT parsing
+            // 🔒 VERIFICACIÓN IDOR: Validar propiedad
+            String rol = usuarioActual.getRol().toUpperCase();
+            if (!rol.equals("ADMIN") && !rol.equals("OPERADOR") && 
+                !factura.getUsuario().getId().equals(usuarioActual.getId())) {
+                System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioActual.getId() + " intentó generar factura de usuario " + factura.getUsuario().getId());
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para generar factura");
+            }
 
             // Buscar dirección en Miami del usuario
             String direccionMiami = "N/A";
             String locker = "N/A";
             if (factura.getUsuario() != null) {
-                Optional<Direccion> direccionOpt = direccionRepository.findByUsuarioId(factura.getUsuario().getId())
+                var direccionOpt = direccionRepository.findByUsuarioId(factura.getUsuario().getId())
                         .stream()
                         .findFirst();
                 
