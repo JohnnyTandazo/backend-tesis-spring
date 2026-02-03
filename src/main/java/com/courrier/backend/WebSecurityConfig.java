@@ -74,9 +74,9 @@ public class WebSecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         
         // 🌍 ORÍGENES PERMITIDOS
-        // Usa Arrays.asList("*") para desarrollo/testing
-        // En producción, especifica exactamente tu dominio Frontend
-        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+        // Cuando allowCredentials=true, NO puedes usar "*"
+        // Usa ".*" (regex para cualquier origen) O especifica explícitamente
+        configuration.setAllowedOriginPatterns(Arrays.asList(".*"));
         // Alternativa para producción:
         // configuration.setAllowedOriginPatterns(Arrays.asList(
         //     "https://v0-currier-tics-layout.vercel.app",
@@ -111,6 +111,7 @@ public class WebSecurityConfig {
         ));
         
         // 🔐 PERMITIR CREDENCIALES
+        // ✅ Ahora compatible con allowedOriginPatterns(".*")
         configuration.setAllowCredentials(true);
         
         // Registrar la configuración para todos los paths
