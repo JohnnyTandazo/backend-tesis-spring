@@ -2,6 +2,7 @@ package com.courrier.backend;
 
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +18,9 @@ public class UsuarioController {
     @Autowired
     private DireccionService direccionService;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     // 1. GET: Para ver todos los usuarios registrados
     @GetMapping
     public List<Usuario> listarUsuarios() {
@@ -28,6 +32,14 @@ public class UsuarioController {
     @PostMapping
     public Usuario guardarUsuario(@RequestBody Usuario usuario) {
         System.out.println("✅ [POST /api/usuarios] PETICIÓN RECIBIDA - Guardando usuario: " + usuario.getEmail());
+        
+        // 🔒 SEGURIDAD: Encriptar contraseña con BCrypt
+        if (usuario.getPassword() != null && !usuario.getPassword().isEmpty()) {
+            String passwordEncriptada = passwordEncoder.encode(usuario.getPassword());
+            usuario.setPassword(passwordEncriptada);
+            System.out.println("   🔐 Contraseña encriptada correctamente");
+        }
+        
         Usuario usuarioGuardado = repositorio.save(usuario);
         System.out.println("✅ Usuario guardado exitosamente: ID=" + usuarioGuardado.getId());
         return usuarioGuardado;
@@ -46,7 +58,9 @@ public class UsuarioController {
             throw new RuntimeException("Usuario no encontrado");
         }
 
-        if (!usuario.getPassword().equals(password)) {
+        // 🔒 SEGURIDAD: Usar PasswordEncoder para comparar contraseñas
+        // ✅ passwordEncoder.matches(passwordPlana, passwordEncriptada)
+        if (!passwordEncoder.matches(password, usuario.getPassword())) {
             System.out.println("❌ Contraseña incorrecta para: " + email);
             throw new RuntimeException("Contraseña incorrecta");
         }
@@ -59,11 +73,20 @@ public class UsuarioController {
     @PostMapping("/registro")
     public Usuario registro(@RequestBody Usuario usuario) {
         System.out.println("📝 [POST /api/usuarios/registro] ✅ PETICIÓN RECIBIDA - Registrando nuevo usuario: " + usuario.getEmail());
+        
         // Asignar rol por defecto si no viene especificado
         if (usuario.getRol() == null || usuario.getRol().isEmpty()) {
             usuario.setRol("CLIENTE");
             System.out.println("   Rol asignado por defecto: CLIENTE");
         }
+        
+        // 🔒 SEGURIDAD: Encriptar contraseña con BCrypt
+        if (usuario.getPassword() != null && !usuario.getPassword().isEmpty()) {
+            String passwordEncriptada = passwordEncoder.encode(usuario.getPassword());
+            usuario.setPassword(passwordEncriptada);
+            System.out.println("   🔐 Contraseña encriptada correctamente");
+        }
+        
         Usuario usuarioGuardado = repositorio.save(usuario);
         System.out.println("✅ Usuario registrado exitosamente: ID=" + usuarioGuardado.getId() + ", Email=" + usuarioGuardado.getEmail());
         return usuarioGuardado;

@@ -3,8 +3,12 @@ package com.courrier.backend;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -116,5 +120,27 @@ public class WebSecurityConfig {
         System.out.println("✅ [WebSecurityConfig] CORS configurado para todos los endpoints");
         
         return source;
+    }
+
+    /**
+     * 🔐 PASSWORD ENCODER
+     * Encriptador de contraseñas usando BCrypt
+     * ✅ Necesario para registrar usuarios y validar passwords en login
+     */
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        System.out.println("✅ [WebSecurityConfig] PasswordEncoder bean registrado (BCryptPasswordEncoder)");
+        return new BCryptPasswordEncoder();
+    }
+
+    /**
+     * 🔑 AUTHENTICATION MANAGER
+     * Gestor de autenticación necesario para el login
+     * ✅ Inyecta el AuthenticationManager en controllers para authenticate()
+     */
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        System.out.println("✅ [WebSecurityConfig] AuthenticationManager bean registrado");
+        return config.getAuthenticationManager();
     }
 }
