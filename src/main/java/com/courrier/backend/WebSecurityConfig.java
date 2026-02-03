@@ -74,14 +74,12 @@ public class WebSecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         
         // 🌍 ORÍGENES PERMITIDOS
-        // Cuando allowCredentials=true, NO puedes usar "*"
-        // Usa ".*" (regex para cualquier origen) O especifica explícitamente
-        configuration.setAllowedOriginPatterns(Arrays.asList(".*"));
-        // Alternativa para producción:
-        // configuration.setAllowedOriginPatterns(Arrays.asList(
-        //     "https://v0-currier-tics-layout.vercel.app",
-        //     "http://localhost:3000"
-        // ));
+        // Para PRODUCCIÓN: Especificar explícitamente el dominio del frontend
+        configuration.setAllowedOrigins(Arrays.asList(
+            "https://v0-currier-tics-layout.vercel.app",  // 🟢 Frontend en Vercel
+            "http://localhost:3000",                        // 🟢 Desarrollo local
+            "http://localhost:8080"                         // 🟢 Si frontend está en mismo host
+        ));
         
         // 📤 MÉTODOS HTTP PERMITIDOS
         configuration.setAllowedMethods(Arrays.asList(
@@ -111,14 +109,14 @@ public class WebSecurityConfig {
         ));
         
         // 🔐 PERMITIR CREDENCIALES
-        // ✅ Ahora compatible con allowedOriginPatterns(".*")
+        // ✅ Compatible con allowedOrigins explícitos
         configuration.setAllowCredentials(true);
         
         // Registrar la configuración para todos los paths
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         
-        System.out.println("✅ [WebSecurityConfig] CORS configurado para todos los endpoints");
+        System.out.println("✅ [WebSecurityConfig] CORS configurado para orígenes específicos");
         
         return source;
     }
