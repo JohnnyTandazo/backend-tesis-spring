@@ -2,6 +2,7 @@ package com.courrier.backend;
 
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -19,6 +20,7 @@ public class UsuarioController {
     private DireccionService direccionService;
 
     @Autowired
+    @Lazy  // 🔧 Lazy loading para evitar BeanCurrentlyInCreationException (dependencia circular)
     private PasswordEncoder passwordEncoder;
 
     // 1. GET: Para ver todos los usuarios registrados

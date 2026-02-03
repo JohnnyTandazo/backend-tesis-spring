@@ -19,7 +19,7 @@ public class Usuario {
     @Column(unique = true, nullable = false)
     private String email;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)  // 🔒 BCrypt genera hashes de ~60 caracteres
     private String password;
 
     private String telefono;
