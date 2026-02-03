@@ -5,6 +5,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -236,17 +238,21 @@ public class PaqueteController extends BaseSecurityController {
             // CASO 2: AUTO-CÁLCULO basado en PESO (Tarifa de flete)
             System.out.println("   🧮 [CALCULADORA AUTOMÁTICA] Calculando precio de flete...");
             
-            Double tarifaBase = 10.00;      // Tarifa base por envío
-            Double costoPorLibra = 5.00;    // $5.00 por libra
-            Double precioEnvio = tarifaBase + (paquete.getPesoLibras() * costoPorLibra);
-            
-            paquete.setPrecio(precioEnvio);
+            BigDecimal tarifaBase = new BigDecimal("5.00");
+            BigDecimal costoPorLibra = new BigDecimal("5.00");
+            if (paquete.getTipoEnvio() == Paquete.TipoEnvio.NACIONAL) {
+                costoPorLibra = new BigDecimal("2.00");
+            }
+            BigDecimal peso = BigDecimal.valueOf(paquete.getPesoLibras());
+            BigDecimal flete = peso.multiply(costoPorLibra).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal totalCalculado = flete.add(tarifaBase);
             
             System.out.println("      • Tarifa Base: $" + tarifaBase);
             System.out.println("      • Peso: " + paquete.getPesoLibras() + " lbs");
             System.out.println("      • Costo por Libra: $" + costoPorLibra);
-            System.out.println("      • TOTAL CALCULADO: $" + String.format("%.2f", precioEnvio));
-            System.out.println("   ✅ Precio AUTO-CALCULADO: $" + String.format("%.2f", precioEnvio));
+            System.out.println("      • Flete: $" + flete);
+            System.out.println("      • TOTAL CALCULADO (sin seguro): $" + totalCalculado);
+            System.out.println("   ✅ Flete AUTO-CALCULADO (no se guarda como valor declarado)");
         }
 
         // 4. Actualizar Categoría (A, B, C, etc.)
@@ -263,22 +269,38 @@ public class PaqueteController extends BaseSecurityController {
         // ════════════════════════════════════════════════════════════
         System.out.println("\n📋 [AUTO-FACTURACIÓN] Verificando si se debe generar factura...");
         
-        // ⚠️ REGLA DE ORO: SIEMPRE calcular el costo basado en PESO, NUNCA usar valorDeclarado
+        // ⚠️ REGLA DE ORO: SIEMPRE calcular el costo basado en PESO, NUNCA sumar valorDeclarado
         if (paqueteActualizado.getPesoLibras() != null && paqueteActualizado.getPesoLibras() > 0) {
             
             // ════════════════════════════════════════════════════════════
             // 🧮 CÁLCULO OBLIGATORIO DEL COSTO DE ENVÍO
             // ════════════════════════════════════════════════════════════
-            Double tarifaBase = 10.00;
-            Double costoPorLibra = 5.00;
-            Double costoCalculado = tarifaBase + (paqueteActualizado.getPesoLibras() * costoPorLibra);
-            
+            BigDecimal tarifaBase = new BigDecimal("5.00");
+            BigDecimal costoPorLibra = new BigDecimal("5.00");
+            if (paqueteActualizado.getTipoEnvio() == Paquete.TipoEnvio.NACIONAL) {
+                costoPorLibra = new BigDecimal("2.00");
+            }
+            BigDecimal peso = BigDecimal.valueOf(paqueteActualizado.getPesoLibras());
+            BigDecimal flete = peso.multiply(costoPorLibra).setScale(2, RoundingMode.HALF_UP);
+
+            BigDecimal valorDeclarado = paqueteActualizado.getPrecio() != null
+                ? BigDecimal.valueOf(paqueteActualizado.getPrecio())
+                : BigDecimal.ZERO;
+            BigDecimal seguro = BigDecimal.ZERO;
+            if (valorDeclarado.compareTo(new BigDecimal("100")) > 0) {
+                seguro = valorDeclarado.multiply(new BigDecimal("0.02")).setScale(2, RoundingMode.HALF_UP);
+            }
+
+            BigDecimal totalCalculado = flete.add(tarifaBase).add(seguro).setScale(2, RoundingMode.HALF_UP);
+
             System.out.println("\n   🧮 [CÁLCULO DE COSTO DE ENVÍO]");
             System.out.println("      • Tarifa Base: $" + tarifaBase);
             System.out.println("      • Peso: " + paqueteActualizado.getPesoLibras() + " lbs");
             System.out.println("      • Costo por Libra: $" + costoPorLibra);
-            System.out.println("      • COSTO DE ENVÍO: $" + String.format("%.2f", costoCalculado));
-            System.out.println("      ⚠️ (NUNCA se usa valorDeclarado para facturación)\n");
+            System.out.println("      • Flete: $" + flete);
+            System.out.println("      • Seguro: $" + seguro + " (2% si valorDeclarado > $100)");
+            System.out.println("      • TOTAL FINAL: $" + totalCalculado);
+            System.out.println("      ⚠️ (NUNCA se suma valorDeclarado al total)\n");
             
             // Verificar si ya existe factura para este paquete
             String descripcionBusqueda = "Importación " + paqueteActualizado.getTrackingNumber();
@@ -294,7 +316,7 @@ public class PaqueteController extends BaseSecurityController {
                 // ✅ CREAR NUEVA FACTURA CON COSTO CALCULADO
                 // ════════════════════════════════════════════════════════════
                 Factura factura = new Factura();
-                factura.setMonto(costoCalculado);  // ← SOLO COSTO DEL FLETE CALCULADO
+                factura.setMonto(totalCalculado.doubleValue());  // ← Flete + Base + Seguro
                 factura.setEstado("PENDIENTE");
                 factura.setDescripcion("Importación " + paqueteActualizado.getTrackingNumber());
                 factura.setUsuario(paqueteActualizado.getUsuario());
@@ -321,13 +343,13 @@ public class PaqueteController extends BaseSecurityController {
                 Factura facturaExistente = facturasExistentes.get(0);
                 System.out.println("   ⚠️ Ya existe factura para este paquete (ID: " + facturaExistente.getId() + ")");
                 System.out.println("      • Monto actual: $" + facturaExistente.getMonto());
-                System.out.println("      • Costo correcto: $" + String.format("%.2f", costoCalculado));
+                System.out.println("      • Costo correcto: $" + String.format("%.2f", totalCalculado));
                 
                 // Si el monto actual es diferente al costo calculado, corregirlo
-                if (Math.abs(facturaExistente.getMonto() - costoCalculado) > 0.01) {
+                if (Math.abs(facturaExistente.getMonto() - totalCalculado.doubleValue()) > 0.01) {
                     System.out.println("      🔧 Detectado monto INCORRECTO - Corrigiendo...");
                     
-                    facturaExistente.setMonto(costoCalculado);
+                    facturaExistente.setMonto(totalCalculado.doubleValue());
                     Factura facturaCorregida = facturaRepo.save(facturaExistente);
                     
                     System.out.println("      ✅ Factura CORREGIDA:");
