@@ -23,6 +23,9 @@ public class UsuarioController {
     private DireccionService direccionService;
 
     @Autowired
+    private UsuarioService usuarioService;
+
+    @Autowired
     @Lazy  // 🔧 Lazy loading para evitar BeanCurrentlyInCreationException (dependencia circular)
     private PasswordEncoder passwordEncoder;
 
@@ -61,7 +64,7 @@ public class UsuarioController {
                 System.out.println("   🔐 Contraseña encriptada correctamente");
             }
             
-            Usuario usuarioGuardado = repositorio.save(usuario);
+            Usuario usuarioGuardado = usuarioService.guardarUsuario(usuario);
             System.out.println("✅ Usuario guardado exitosamente: ID=" + usuarioGuardado.getId());
             return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
                 "mensaje", "Usuario creado exitosamente",
@@ -71,6 +74,11 @@ public class UsuarioController {
                 "rol", usuarioGuardado.getRol()
             ));
             
+        } catch (UserAlreadyExistsException e) {
+            System.out.println("❌ Email ya existe: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", e.getMessage()));
+
         } catch (DataIntegrityViolationException e) {
             // Email duplicado u otra violación de constraint
             System.out.println("❌ Email ya existe o violación de constraint: " + e.getMessage());
@@ -168,7 +176,7 @@ public class UsuarioController {
                 System.out.println("   🔐 Contraseña encriptada correctamente");
             }
             
-            Usuario usuarioGuardado = repositorio.save(usuario);
+            Usuario usuarioGuardado = usuarioService.guardarUsuario(usuario);
             System.out.println("✅ Usuario registrado exitosamente: ID=" + usuarioGuardado.getId() + ", Email=" + usuarioGuardado.getEmail());
             String token = jwtUtil.generarToken(usuarioGuardado.getEmail(), usuarioGuardado.getId(), usuarioGuardado.getRol());
             
@@ -182,6 +190,11 @@ public class UsuarioController {
                 "token", token
             ));
             
+        } catch (UserAlreadyExistsException e) {
+            System.out.println("❌ Email ya existe: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", e.getMessage()));
+
         } catch (DataIntegrityViolationException e) {
             // Email duplicado u otra violación de constraint
             System.out.println("❌ Email ya existe o violación de constraint: " + e.getMessage());
