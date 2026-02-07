@@ -17,6 +17,9 @@ public interface EnvioRepository extends JpaRepository<Envio, Long> {
     
     // Buscar por número de tracking
     Envio findByNumeroTracking(String numeroTracking);
+
+    // Buscar envíos por estados (con orden)
+    List<Envio> findByEstadoIn(List<String> estados, Sort sort);
     
     /**
      * MÉTODO DIRECTO Y SEGURO: Actualiza el estado del envío directamente en BD

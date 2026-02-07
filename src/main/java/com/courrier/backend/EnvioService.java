@@ -31,6 +31,12 @@ public class EnvioService {
         return envioRepository.findAll(Sort.by(Sort.Direction.DESC, "id"));
     }
 
+    // Obtener envíos por lista de estados (ordenados descendentemente)
+    public List<Envio> obtenerPorEstados(List<String> estados) {
+        System.out.println("📦 [EnvioService] Obteniendo envíos por estados: " + estados);
+        return envioRepository.findByEstadoIn(estados, Sort.by(Sort.Direction.DESC, "id"));
+    }
+
     // Obtener envíos de un usuario específico (ordenados descendentemente - más recientes primero)
     public List<Envio> obtenerPorUsuario(Long usuarioId) {
         System.out.println("👤 [EnvioService] Obteniendo envíos del usuario: " + usuarioId + " (ordenados DESC)");
@@ -166,6 +172,16 @@ public class EnvioService {
         }).orElseThrow(() -> new RuntimeException("Envío no encontrado"));
     }
 
+    // Actualizar tracking y mover a EN_TRANSITO
+    public Envio actualizarTrackingOperador(Long id, String nuevoTracking) {
+        System.out.println("🚚 [EnvioService] Actualizando tracking de envío ID: " + id + " a: " + nuevoTracking);
+        return envioRepository.findById(id).map(envio -> {
+            envio.setNumeroTracking(nuevoTracking);
+            envio.setEstado("EN_TRANSITO");
+            return envioRepository.save(envio);
+        }).orElseThrow(() -> new RuntimeException("Envío no encontrado"));
+    }
+
     // Actualizar solo el estado de un envío
     public Envio actualizarEstado(Long id, String nuevoEstado) {
         System.out.println("🔄 [EnvioService] Actualizando estado del envío ID: " + id + " a: " + nuevoEstado);
@@ -186,6 +202,25 @@ public class EnvioService {
             System.out.println("❌ Envío no encontrado con ID: " + id);
             return new RuntimeException("Envío no encontrado con ID: " + id);
         });
+    }
+
+    // Marcar pago rechazado
+    public Envio rechazarPago(Long id, String motivo) {
+        System.out.println("❌ [EnvioService] Rechazando pago del envío ID: " + id + (motivo != null ? " Motivo: " + motivo : ""));
+        return envioRepository.findById(id).map(envio -> {
+            envio.setEstado("PAGO_RECHAZADO");
+            return envioRepository.save(envio);
+        }).orElseThrow(() -> new RuntimeException("Envío no encontrado"));
+    }
+
+    // Aprobar pago
+    public Envio aprobarPago(Long id, String nuevoEstado) {
+        String estadoFinal = (nuevoEstado == null || nuevoEstado.isBlank()) ? "PAGO_APROBADO" : nuevoEstado;
+        System.out.println("✅ [EnvioService] Aprobando pago del envío ID: " + id + " -> " + estadoFinal);
+        return envioRepository.findById(id).map(envio -> {
+            envio.setEstado(estadoFinal);
+            return envioRepository.save(envio);
+        }).orElseThrow(() -> new RuntimeException("Envío no encontrado"));
     }
 
     // Eliminar un envío
