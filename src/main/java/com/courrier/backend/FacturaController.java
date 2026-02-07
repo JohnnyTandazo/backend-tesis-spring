@@ -114,9 +114,12 @@ public class FacturaController extends BaseSecurityController {
             // ADMIN y OPERADOR tienen acceso total
             if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
                 System.out.println("✅ Acceso autorizado: Usuario " + rol);
-            } else if (factura.getUsuario() == null || !factura.getUsuario().getId().equals(usuarioActual.getId())) {
+            } else if (factura.getUsuario() == null) {
+                System.out.println("🚫 ACCESO DENEGADO: Factura sin usuario asignado (ID: " + factura.getId() + ")");
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Factura sin propietario asignado");
+            } else if (!factura.getUsuario().getId().equals(usuarioActual.getId())) {
                 System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioActual.getEmail() +
-                    " intentó acceder a factura de usuario " + (factura.getUsuario() != null ? factura.getUsuario().getEmail() : "N/A"));
+                    " intentó acceder a factura de usuario " + factura.getUsuario().getEmail());
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver esta factura");
             }
 
@@ -230,6 +233,9 @@ public class FacturaController extends BaseSecurityController {
         try {
             // 🔒 SEGURIDAD: Obtener usuario desde JWT
             Usuario usuarioActual = obtenerUsuarioAutenticado();
+
+            // Asignar siempre el usuario autenticado para evitar facturas sin propietario
+            factura.setUsuario(usuarioActual);
             
             Factura nueva = facturaService.crearFactura(factura);
             System.out.println("✅ Factura creada con ID: " + nueva.getId());
