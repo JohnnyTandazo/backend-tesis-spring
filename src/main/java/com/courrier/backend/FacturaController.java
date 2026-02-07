@@ -108,10 +108,15 @@ public class FacturaController extends BaseSecurityController {
 
             Factura factura = facturaOpt.get();
 
-            // 🔒 IDOR: CLIENTE solo puede ver su propia factura
+            // 🔒 VERIFICACIÓN IDOR: Comprobar propiedad del recurso
             String rol = usuarioActual.getRol().toUpperCase();
-            if (!"ADMIN".equals(rol) && !"OPERADOR".equals(rol) &&
-                (factura.getUsuario() == null || !factura.getUsuario().getId().equals(usuarioActual.getId()))) {
+
+            // ADMIN y OPERADOR tienen acceso total
+            if (rol.equals("ADMIN") || rol.equals("OPERADOR")) {
+                System.out.println("✅ Acceso autorizado: Usuario " + rol);
+            } else if (factura.getUsuario() == null || !factura.getUsuario().getId().equals(usuarioActual.getId())) {
+                System.out.println("🚫 ACCESO DENEGADO: Cliente " + usuarioActual.getEmail() +
+                    " intentó acceder a factura de usuario " + (factura.getUsuario() != null ? factura.getUsuario().getEmail() : "N/A"));
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para ver esta factura");
             }
 
