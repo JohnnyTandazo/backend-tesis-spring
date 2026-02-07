@@ -11,7 +11,7 @@ import java.util.List;
 
 @CrossOrigin(origins = "*")
 @RestController
-@RequestMapping("/api/operador/envios")
+@RequestMapping("/api/operador")
 public class OperadorEnvioController extends BaseSecurityController {
 
     @Autowired
@@ -26,11 +26,10 @@ public class OperadorEnvioController extends BaseSecurityController {
     }
 
     /**
-     * GET /api/operador/envios
-     * Listar envíos para operador/admin. Puede filtrar por estados.
-     * Ej: /api/operador/envios?estados=PENDIENTE_PAGO&estados=EN_PROCESO
+     * PUT /api/operador/envios/{id}/tracking
+     * Actualiza tracking y cambia estado a EN_TRANSITO
      */
-    @GetMapping
+    @GetMapping("/envios")
     public ResponseEntity<List<Envio>> listarEnviosOperador(
             @RequestParam(value = "estados", required = false) List<String> estados) {
         validarOperador();
@@ -42,11 +41,7 @@ public class OperadorEnvioController extends BaseSecurityController {
         return ResponseEntity.ok(envioService.obtenerPorEstados(estados));
     }
 
-    /**
-     * PUT /api/operador/envios/{id}/tracking
-     * Actualiza tracking y cambia estado a EN_TRANSITO
-     */
-    @PutMapping("/{id}/tracking")
+    @PutMapping("/envios/{id}/tracking")
     public ResponseEntity<Envio> actualizarTracking(
             @PathVariable Long id,
             @RequestParam String nuevoTracking) {
@@ -58,7 +53,7 @@ public class OperadorEnvioController extends BaseSecurityController {
      * PUT /api/operador/envios/{id}/rechazar-pago
      * Cambia estado a PAGO_RECHAZADO
      */
-    @PutMapping("/{id}/rechazar-pago")
+    @PutMapping("/envios/{id}/rechazar-pago")
     public ResponseEntity<Envio> rechazarPago(
             @PathVariable Long id,
             @RequestParam(value = "motivo", required = false) String motivo) {
@@ -70,7 +65,7 @@ public class OperadorEnvioController extends BaseSecurityController {
      * PUT /api/operador/envios/{id}/aprobar-pago
      * Cambia estado a PAGO_APROBADO o al estado indicado
      */
-    @PutMapping("/{id}/aprobar-pago")
+    @PutMapping("/envios/{id}/aprobar-pago")
     public ResponseEntity<Envio> aprobarPago(
             @PathVariable Long id,
             @RequestParam(value = "nuevoEstado", required = false) String nuevoEstado) {
