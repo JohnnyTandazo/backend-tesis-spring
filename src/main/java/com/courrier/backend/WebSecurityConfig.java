@@ -68,6 +68,9 @@ public class WebSecurityConfig {
                 .requestMatchers("/api/facturas/**").authenticated()
                 .requestMatchers("/api/pdf/factura/**").authenticated()
 
+                // 🟢 ENDPOINTS OPERADOR/ADMIN
+                .requestMatchers("/api/operador/**").hasAnyAuthority("ROLE_OPERADOR", "ROLE_ADMIN", "OPERADOR", "ADMIN")
+
                 // 🟢 ENDPOINTS CLIENTE/ADMIN
                 .requestMatchers("/api/direcciones/**").hasAnyAuthority("ROLE_CLIENTE", "ROLE_ADMIN", "CLIENTE", "ADMIN")
                 
