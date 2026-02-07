@@ -243,16 +243,20 @@ public class PaqueteController extends BaseSecurityController {
             if (paquete.getTipoEnvio() == Paquete.TipoEnvio.NACIONAL) {
                 costoPorLibra = new BigDecimal("2.00");
             }
+            BigDecimal valorDeclarado = paquete.getPrecio() != null
+                ? BigDecimal.valueOf(paquete.getPrecio())
+                : BigDecimal.ZERO;
             BigDecimal peso = BigDecimal.valueOf(paquete.getPesoLibras());
             BigDecimal flete = peso.multiply(costoPorLibra).setScale(2, RoundingMode.HALF_UP);
-            BigDecimal totalCalculado = flete.add(tarifaBase);
+            BigDecimal totalCalculado = flete.add(tarifaBase).add(valorDeclarado);
             
             System.out.println("      • Tarifa Base: $" + tarifaBase);
             System.out.println("      • Peso: " + paquete.getPesoLibras() + " lbs");
             System.out.println("      • Costo por Libra: $" + costoPorLibra);
             System.out.println("      • Flete: $" + flete);
-            System.out.println("      • TOTAL CALCULADO (sin seguro): $" + totalCalculado);
-            System.out.println("   ✅ Flete AUTO-CALCULADO (no se guarda como valor declarado)");
+            System.out.println("      • Valor FOB: $" + valorDeclarado);
+            System.out.println("      • TOTAL CALCULADO (incluye FOB, sin seguro): $" + totalCalculado);
+            System.out.println("   ✅ Flete AUTO-CALCULADO (incluye FOB)");
         }
 
         // 4. Actualizar Categoría (A, B, C, etc.)
@@ -291,16 +295,18 @@ public class PaqueteController extends BaseSecurityController {
                 seguro = valorDeclarado.multiply(new BigDecimal("0.02")).setScale(2, RoundingMode.HALF_UP);
             }
 
-            BigDecimal totalCalculado = flete.add(tarifaBase).add(seguro).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal totalCalculado = flete.add(tarifaBase).add(seguro).add(valorDeclarado)
+                .setScale(2, RoundingMode.HALF_UP);
 
             System.out.println("\n   🧮 [CÁLCULO DE COSTO DE ENVÍO]");
             System.out.println("      • Tarifa Base: $" + tarifaBase);
             System.out.println("      • Peso: " + paqueteActualizado.getPesoLibras() + " lbs");
             System.out.println("      • Costo por Libra: $" + costoPorLibra);
             System.out.println("      • Flete: $" + flete);
+            System.out.println("      • Valor FOB: $" + valorDeclarado);
             System.out.println("      • Seguro: $" + seguro + " (2% si valorDeclarado > $100)");
             System.out.println("      • TOTAL FINAL: $" + totalCalculado);
-            System.out.println("      ⚠️ (NUNCA se suma valorDeclarado al total)\n");
+            System.out.println("      ✅ (FOB incluido en el total)\n");
             
             // Verificar si ya existe factura para este paquete
             String descripcionBusqueda = "Importación " + paqueteActualizado.getTrackingNumber();
