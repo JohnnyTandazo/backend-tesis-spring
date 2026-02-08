@@ -82,6 +82,13 @@ public class PagoService {
     }
 
     /**
+     * Buscar pago pendiente por paqueteId
+     */
+    public Pago obtenerPagoPorPaqueteId(Long paqueteId) {
+        return pagoRepository.findPagoPendienteByPaqueteId(paqueteId);
+    }
+
+    /**
      * Registrar un nuevo pago (multipart/form-data)
      * CON AUDITORÍA COMPLETA, DEBUG LOGS Y SINCRONIZACIÓN ROBUSTA
      */
@@ -252,5 +259,9 @@ public class PagoService {
     public void eliminarPago(Long id) {
         System.out.println("🗑️ [PagoService] Eliminando pago con ID: " + id);
         pagoRepository.deleteById(id);
+    }
+
+    public void guardarPago(Pago pago) {
+        pagoRepository.save(pago);
     }
 }

@@ -16,6 +16,10 @@ public class OperadorEnvioController extends BaseSecurityController {
 
     @Autowired
     private EnvioService envioService;
+    @Autowired
+    private PagoService pagoService;
+    @Autowired
+    private PaqueteRepository paqueteRepo;
 
     private void validarOperador() {
         Usuario usuarioActual = obtenerUsuarioAutenticado();
@@ -83,5 +87,31 @@ public class OperadorEnvioController extends BaseSecurityController {
             @RequestParam(value = "nuevoEstado", required = false) String nuevoEstado) {
         validarOperador();
         return ResponseEntity.ok(envioService.aprobarPago(id, nuevoEstado));
+    }
+
+    /**
+     * PUT /api/operador/paquetes/{paqueteId}/aprobar-pago
+     * Aprueba el pago asociado a un paquete antes de ser envío
+     */
+    @PutMapping("/paquetes/{paqueteId}/aprobar-pago")
+    public ResponseEntity<?> aprobarPagoPorPaquete(
+            @PathVariable Long paqueteId) {
+        validarOperador();
+        // Buscar pago asociado al paquete
+        Pago pago = pagoService.obtenerPagoPorPaqueteId(paqueteId);
+        if (pago == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("No existe pago pendiente para este paquete");
+        }
+        // Cambiar estado del pago a APROBADO
+        pago.setEstado("APROBADO");
+        pagoService.guardarPago(pago);
+        // (Opcional) Cambiar estado del paquete
+        Paquete paquete = paqueteRepo.findById(paqueteId).orElse(null);
+        if (paquete != null) {
+            paquete.setEstado("EN_ALMACEN"); // O "PAGADO" según lógica
+            paqueteRepo.save(paquete);
+        }
+        return ResponseEntity.ok(pago);
     }
 }

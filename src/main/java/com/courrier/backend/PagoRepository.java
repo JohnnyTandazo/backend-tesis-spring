@@ -22,6 +22,12 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
     List<Pago> findByFacturaIdAndEstado(Long facturaId, String estado);
     
     /**
+     * Buscar pago pendiente por paqueteId (a través de la factura)
+     */
+    @Query("SELECT p FROM Pago p JOIN p.factura f WHERE f.descripcion LIKE CONCAT('%', :paqueteId, '%') AND p.estado = 'PENDIENTE'")
+    Pago findPagoPendienteByPaqueteId(@Param("paqueteId") Long paqueteId);
+    
+    /**
      * Obtener todos los pagos de un usuario (a través de sus facturas)
      * JOIN con Factura para filtrar por usuario_id
      */
