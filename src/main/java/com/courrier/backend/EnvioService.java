@@ -1,3 +1,4 @@
+// ...existing code...
 package com.courrier.backend;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -215,12 +216,21 @@ public class EnvioService {
 
     // Aprobar pago
     public Envio aprobarPago(Long id, String nuevoEstado) {
-        String estadoFinal = (nuevoEstado == null || nuevoEstado.isBlank()) ? "PAGO_APROBADO" : nuevoEstado;
-        System.out.println("✅ [EnvioService] Aprobando pago del envío ID: " + id + " -> " + estadoFinal);
-        return envioRepository.findById(id).map(envio -> {
-            envio.setEstado(estadoFinal);
-            return envioRepository.save(envio);
-        }).orElseThrow(() -> new RuntimeException("Envío no encontrado"));
+        System.out.println("✅ [EnvioService] Aprobando pago del envío ID: " + id);
+        Envio envio = envioRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Envío no encontrado"));
+
+        Factura factura = facturaRepository.findByEnvioId(envio.getId());
+        if (factura != null) {
+            factura.setEstado("PAGADA"); // O EstadoFactura.PAGADA si usas enum
+            facturaRepository.save(factura);
+            System.out.println("✅ Factura actualizada a PAGADA para envío ID: " + envio.getId());
+        } else {
+            System.out.println("❌ No se encontró factura asociada al envío ID: " + envio.getId());
+        }
+
+        // Retornar el envío sin modificar su estado logístico
+        return envio;
     }
 
     // Eliminar un envío

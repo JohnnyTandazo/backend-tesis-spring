@@ -1,3 +1,4 @@
+// ...existing code...
 package com.courrier.backend;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,26 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/envios")
 public class EnvioController extends BaseSecurityController {
+
+    /**
+     * PUT: Actualizar tracking de un envío (solo logística, operador)
+     * 🔒 SEGURIDAD: Requiere JWT (Operador/Admin)
+     */
+    @PutMapping("/api/operador/envios/{id}/tracking")
+    public ResponseEntity<Envio> actualizarTrackingOperador(
+            @PathVariable Long id,
+            @RequestParam String nuevoTracking) {
+        System.out.println("🚚 [PUT /api/operador/envios/" + id + "/tracking] PETICIÓN RECIBIDA");
+        obtenerUsuarioAutenticado();
+        try {
+            Envio envio = envioService.actualizarTrackingOperador(id, nuevoTracking);
+            System.out.println("✅ Tracking actualizado: " + nuevoTracking + ", Estado: " + envio.getEstado());
+            return ResponseEntity.ok(envio);
+        } catch (RuntimeException e) {
+            System.out.println("❌ Error al actualizar tracking: " + e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
+    }
 
     @Autowired
     private EnvioService envioService;
