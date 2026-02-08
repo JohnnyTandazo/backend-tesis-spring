@@ -63,6 +63,7 @@ public class WebSecurityConfig {
                 .requestMatchers("/api/usuarios/registro").permitAll()
                 .requestMatchers("/api/usuarios/crear").permitAll()
                 .requestMatchers("/error").permitAll()
+                .requestMatchers("/api/public/**").permitAll()
 
                 // 🟢 ENDPOINTS FACTURAS (PDF y CRUD): cualquier usuario autenticado
                 .requestMatchers("/api/facturas/**").authenticated()
