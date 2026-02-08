@@ -1,11 +1,16 @@
+
 package com.courrier.backend;
-    // MÉTODO ELIMINADO: Se consolidó en EnvioController.java
-    // @PutMapping("/envios/{id}/tracking")
-    // public ResponseEntity<Envio> actualizarTracking(
-    //         @PathVariable Long id,
-    //         @RequestParam String nuevoTracking) {
-    //     return ResponseEntity.ok(envioService.actualizarTrackingOperador(id, nuevoTracking));
-    // Método de tracking eliminado para evitar duplicidad. Consolidado en EnvioController.java
+
+import org.springframework.web.bind.annotation.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import java.util.List;
+
+@CrossOrigin(origins = "*")
+@RestController
+@RequestMapping("/api/operador")
+public class OperadorEnvioController {
     @Autowired
     private PaqueteRepository paqueteRepo;
 
@@ -17,28 +22,14 @@ package com.courrier.backend;
         }
     }
 
-    /**
-     * PUT /api/operador/envios/{id}/tracking
-     * Actualiza tracking y cambia estado a EN_TRANSITO
-     */
     @GetMapping("/envios")
     public ResponseEntity<List<Envio>> listarEnviosOperador(
             @RequestParam(value = "estados", required = false) List<String> estados) {
         validarOperador();
-
         if (estados == null || estados.isEmpty()) {
             return ResponseEntity.ok(envioService.obtenerTodos());
         }
-
         return ResponseEntity.ok(envioService.obtenerPorEstados(estados));
-    }
-
-    @PutMapping("/envios/{id}/tracking")
-    public ResponseEntity<Envio> actualizarTracking(
-            @PathVariable Long id,
-            @RequestParam String nuevoTracking) {
-        validarOperador();
-        return ResponseEntity.ok(envioService.actualizarTrackingOperador(id, nuevoTracking));
     }
 
     /**
