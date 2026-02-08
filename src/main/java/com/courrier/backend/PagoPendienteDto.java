@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 /**
  * DTO para pagos pendientes con envioId explicito.
  */
+
 public class PagoPendienteDto {
 
     private Long id;
@@ -17,6 +18,7 @@ public class PagoPendienteDto {
     private String descripcion;
     private Long facturaId;
     private Long envioId;
+    private Long paqueteId; // Nuevo campo
 
     public static PagoPendienteDto from(Pago pago) {
         PagoPendienteDto dto = new PagoPendienteDto();
@@ -31,14 +33,23 @@ public class PagoPendienteDto {
         dto.facturaId = pago.getFacturaId();
 
         Long envioId = null;
+        Long paqueteId = null;
         if (pago.getFactura() != null) {
             if (pago.getFactura().getEnvioId() != null) {
                 envioId = pago.getFactura().getEnvioId();
+                // Buscar paqueteId desde Envio si existe
+                if (pago.getFactura().getEnvio() != null && pago.getFactura().getEnvio().getPaquete() != null) {
+                    paqueteId = pago.getFactura().getEnvio().getPaquete().getId();
+                }
             } else if (pago.getFactura().getEnvio() != null) {
                 envioId = pago.getFactura().getEnvio().getId();
+                if (pago.getFactura().getEnvio().getPaquete() != null) {
+                    paqueteId = pago.getFactura().getEnvio().getPaquete().getId();
+                }
             }
         }
         dto.envioId = envioId;
+        dto.paqueteId = paqueteId;
         return dto;
     }
 
@@ -80,5 +91,9 @@ public class PagoPendienteDto {
 
     public Long getEnvioId() {
         return envioId;
+    }
+
+    public Long getPaqueteId() {
+        return paqueteId;
     }
 }
