@@ -37,16 +37,13 @@ public class PagoPendienteDto {
         if (pago.getFactura() != null) {
             if (pago.getFactura().getEnvioId() != null) {
                 envioId = pago.getFactura().getEnvioId();
-                // Buscar paqueteId desde Envio si existe
-                if (pago.getFactura().getEnvio() != null && pago.getFactura().getEnvio().getPaquete() != null) {
-                    paqueteId = pago.getFactura().getEnvio().getPaquete().getId();
-                }
             } else if (pago.getFactura().getEnvio() != null) {
                 envioId = pago.getFactura().getEnvio().getId();
-                if (pago.getFactura().getEnvio().getPaquete() != null) {
-                    paqueteId = pago.getFactura().getEnvio().getPaquete().getId();
-                }
             }
+        }
+        // Nueva lógica: obtener paqueteId directamente del Pago
+        if (pago.getPaquete() != null) {
+            paqueteId = pago.getPaquete().getId();
         }
         dto.envioId = envioId;
         dto.paqueteId = paqueteId;
