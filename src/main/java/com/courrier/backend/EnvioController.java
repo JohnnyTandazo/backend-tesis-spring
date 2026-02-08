@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Optional;
+import java.util.Map;
 
 /**
  * 🔒 ENVIO CONTROLLER - AUTENTICACIÓN SEGURA CON JWT
@@ -29,10 +30,11 @@ public class EnvioController extends BaseSecurityController {
     @PutMapping("/api/operador/envios/{id}/tracking")
     public ResponseEntity<Envio> actualizarTrackingOperador(
             @PathVariable Long id,
-            @RequestParam String nuevoTracking) {
+            @RequestBody Map<String, Object> payload) {
         System.out.println("🚚 [PUT /api/operador/envios/" + id + "/tracking] PETICIÓN RECIBIDA");
         obtenerUsuarioAutenticado();
         try {
+            String nuevoTracking = (String) payload.get("tracking");
             Envio envio = envioService.actualizarTrackingOperador(id, nuevoTracking);
             System.out.println("✅ Tracking actualizado: " + nuevoTracking + ", Estado: " + envio.getEstado());
             return ResponseEntity.ok(envio);
