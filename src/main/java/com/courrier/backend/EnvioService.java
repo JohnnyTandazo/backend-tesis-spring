@@ -183,9 +183,8 @@ public class EnvioService {
         System.out.println("📦 Valor actual: " + envio.getNumeroTracking());
         envio.setNumeroTracking(nuevoTracking);
         envio.setEstado("EN_TRANSITO");
-        System.out.println("💾 Persistiendo en DB: ID " + id + " con tracking " + nuevoTracking);
         Envio guardado = envioRepository.saveAndFlush(envio);
-        System.out.println("✅ Guardado exitoso: " + guardado.getNumeroTracking());
+        System.out.println("💾 DB CONFIRMADA: Envio " + id + " guardado con tracking " + nuevoTracking);
         return guardado;
     }
 
