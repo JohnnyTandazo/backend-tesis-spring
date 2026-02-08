@@ -4,6 +4,7 @@ package com.courrier.backend;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -174,18 +175,17 @@ public class EnvioService {
     }
 
     // Actualizar tracking y mover a EN_TRANSITO
+    @Transactional
     public Envio actualizarTrackingOperador(Long id, String nuevoTracking) {
-        System.out.println("🚚 [EnvioService] Actualizando tracking de envío ID: " + id + " a: " + nuevoTracking);
-        @Transactional
-        public Envio actualizarTrackingOperador(Long id, String nuevoTracking) {
-            System.out.println("🚚 [EnvioService] Actualizando tracking de envío ID: " + id + " a: " + nuevoTracking);
-            return envioRepository.findById(id).map(envio -> {
-                System.out.println("📦 Antes: " + envio.getNumeroTracking());
-                envio.setNumeroTracking(nuevoTracking);
-                System.out.println("✅ Después: " + envio.getNumeroTracking());
-                envio.setEstado("EN_TRANSITO");
-                return envioRepository.save(envio);
-            }).orElseThrow(() -> new RuntimeException("Envío no encontrado"));
+        System.out.println("🔍 [Service] Iniciando actualización para Envio ID: " + id);
+        Envio envio = envioRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("No se encontró el envío con ID: " + id));
+        System.out.println("📦 Valor actual en DB: " + envio.getNumeroTracking());
+        envio.setNumeroTracking(nuevoTracking);
+        envio.setEstado("EN_TRANSITO");
+        Envio guardado = envioRepository.save(envio);
+        System.out.println("✅ Guardado exitoso. Nuevo tracking: " + guardado.getNumeroTracking());
+        return guardado;
     }
 
     // Actualizar solo el estado de un envío
