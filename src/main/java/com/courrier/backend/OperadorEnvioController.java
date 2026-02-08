@@ -1,23 +1,11 @@
 package com.courrier.backend;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.util.Arrays;
-import java.util.List;
-
-@CrossOrigin(origins = "*")
-@RestController
-@RequestMapping("/api/operador")
-public class OperadorEnvioController extends BaseSecurityController {
-
-    @Autowired
-    private EnvioService envioService;
-    @Autowired
-    private PagoService pagoService;
+    // MÉTODO ELIMINADO: Se consolidó en EnvioController.java
+    // @PutMapping("/envios/{id}/tracking")
+    // public ResponseEntity<Envio> actualizarTracking(
+    //         @PathVariable Long id,
+    //         @RequestParam String nuevoTracking) {
+    //     return ResponseEntity.ok(envioService.actualizarTrackingOperador(id, nuevoTracking));
+    // Método de tracking eliminado para evitar duplicidad. Consolidado en EnvioController.java
     @Autowired
     private PaqueteRepository paqueteRepo;
 
