@@ -250,6 +250,28 @@ public class EnvioController extends BaseSecurityController {
     }
 
     /**
+     * PUT: Aprobar el pago de un envío
+     * 🔒 SEGURIDAD: Requiere JWT (Operador/Admin)
+     */
+    @PutMapping("/{id}/aprobar-pago")
+    public ResponseEntity<Envio> aprobarPago(
+            @PathVariable Long id, 
+            @RequestParam(required = false) String nuevoEstado) {
+        System.out.println("💰 [PUT /api/envios/" + id + "/aprobar-pago] ✅ PETICIÓN RECIBIDA");
+        // 🔒 SEGURIDAD: Validar usuario
+        obtenerUsuarioAutenticado();
+        try {
+            // Llamamos al método del servicio que actualiza la factura
+            Envio envio = envioService.aprobarPago(id, nuevoEstado);
+            System.out.println("✅ Pago aprobado y factura actualizada para envío ID: " + id);
+            return ResponseEntity.ok(envio);
+        } catch (RuntimeException e) {
+            System.out.println("❌ Error al aprobar pago: " + e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    /**
      * DELETE: Eliminar un envío
      * 🔒 SEGURIDAD: Requiere JWT válido en Authorization header
      */
