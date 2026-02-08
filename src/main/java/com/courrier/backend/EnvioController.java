@@ -32,6 +32,7 @@ public class EnvioController extends BaseSecurityController {
             @PathVariable Long id,
             @RequestBody Map<String, Object> payload) {
         String nuevoTracking = (String) payload.get("tracking");
+        System.out.println("🔍 Buscando envio ID: " + id);
         obtenerUsuarioAutenticado();
         try {
             Envio envio = envioService.actualizarTrackingOperador(id, nuevoTracking);
