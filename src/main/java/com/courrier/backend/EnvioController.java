@@ -253,11 +253,11 @@ public class EnvioController extends BaseSecurityController {
      * PUT: Aprobar el pago de un envío
      * 🔒 SEGURIDAD: Requiere JWT (Operador/Admin)
      */
-    @PutMapping("/{id}/aprobar-pago")
+    @PutMapping("/api/operador/envios/{id}/aprobar-pago")
     public ResponseEntity<Envio> aprobarPago(
             @PathVariable Long id, 
             @RequestParam(required = false) String nuevoEstado) {
-        System.out.println("💰 [PUT /api/envios/" + id + "/aprobar-pago] ✅ PETICIÓN RECIBIDA");
+        System.out.println("💰 [PUT /api/operador/envios/" + id + "/aprobar-pago] ✅ PETICIÓN RECIBIDA");
         // 🔒 SEGURIDAD: Validar usuario
         obtenerUsuarioAutenticado();
         try {
