@@ -31,7 +31,7 @@ public class PagoController extends BaseSecurityController {
      * 🔒 SEGURIDAD: ADMIN ENDPOINT - Requiere JWT válido
      */
     @GetMapping("/pendientes")
-    public ResponseEntity<List<Pago>> obtenerPendientes() {
+    public ResponseEntity<List<PagoPendienteDto>> obtenerPendientes() {
         System.out.println("💳 [GET /api/pagos/pendientes] PETICIÓN DEL ADMIN - Listando pagos pendientes...");
         
         try {
@@ -40,7 +40,7 @@ public class PagoController extends BaseSecurityController {
             
             List<Pago> pagosPendientes = pagoService.obtenerPendientes();
             System.out.println("✅ Se devuelven " + pagosPendientes.size() + " pagos pendientes");
-            return ResponseEntity.ok(pagosPendientes);
+            return ResponseEntity.ok(pagosPendientes.stream().map(PagoPendienteDto::from).toList());
         } catch (Exception e) {
             System.out.println("❌ Error obteniendo pagos pendientes: " + e.getMessage());
             e.printStackTrace();

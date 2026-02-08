@@ -62,6 +62,18 @@ public class OperadorEnvioController extends BaseSecurityController {
     }
 
     /**
+     * PUT /api/operador/envios/{id}/estado
+     * Cambia el estado del envío a cualquier valor permitido por el operador
+     */
+    @PutMapping("/envios/{id}/estado")
+    public ResponseEntity<Envio> actualizarEstadoManual(
+            @PathVariable Long id,
+            @RequestParam String nuevoEstado) {
+        validarOperador();
+        return ResponseEntity.ok(envioService.actualizarEstado(id, nuevoEstado));
+    }
+
+    /**
      * PUT /api/operador/envios/{id}/aprobar-pago
      * Cambia estado a PAGO_APROBADO o al estado indicado
      */
