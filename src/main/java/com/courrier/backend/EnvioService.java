@@ -177,14 +177,14 @@ public class EnvioService {
     // Actualizar tracking y mover a EN_TRANSITO
     @Transactional
     public Envio actualizarTrackingOperador(Long id, String nuevoTracking) {
-        System.out.println("🔍 [Service] Iniciando actualización para Envio ID: " + id);
+        System.out.println("🔍 [Service] Buscando envio ID: " + id);
         Envio envio = envioRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("No se encontró el envío con ID: " + id));
-        System.out.println("📦 Valor actual en DB: " + envio.getNumeroTracking());
+            .orElseThrow(() -> new RuntimeException("No se encontro el envio con ID: " + id));
+        System.out.println("📦 Valor actual: " + envio.getNumeroTracking());
         envio.setNumeroTracking(nuevoTracking);
         envio.setEstado("EN_TRANSITO");
         Envio guardado = envioRepository.save(envio);
-        System.out.println("✅ Guardado exitoso. Nuevo tracking: " + guardado.getNumeroTracking());
+        System.out.println("✅ Guardado exitoso: " + guardado.getNumeroTracking());
         return guardado;
     }
 
