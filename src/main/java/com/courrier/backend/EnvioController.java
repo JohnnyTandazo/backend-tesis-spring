@@ -31,10 +31,10 @@ public class EnvioController extends BaseSecurityController {
     public ResponseEntity<Envio> actualizarTrackingOperador(
             @PathVariable Long id,
             @RequestBody Map<String, Object> payload) {
-        System.out.println("🚚 [PUT /api/operador/envios/" + id + "/tracking] PETICIÓN RECIBIDA");
+        String nuevoTracking = (String) payload.get("tracking");
+        System.out.println("🚚 [PUT /api/operador/envios/" + id + "/tracking] Tracking recibido: " + nuevoTracking);
         obtenerUsuarioAutenticado();
         try {
-            String nuevoTracking = (String) payload.get("tracking");
             Envio envio = envioService.actualizarTrackingOperador(id, nuevoTracking);
             System.out.println("✅ Tracking actualizado: " + nuevoTracking + ", Estado: " + envio.getEstado());
             return ResponseEntity.ok(envio);
