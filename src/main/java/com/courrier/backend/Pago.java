@@ -48,6 +48,12 @@ public class Pago {
     private Factura factura;
 
     // ========================================
+    // RELACIÓN: Muchos pagos pueden estar asociados a un paquete
+    // ========================================
+    @ManyToOne
+    @JoinColumn(name = "paquete_id") // Ajusta el nombre si tu BD usa otro
+    private Paquete paquete;
+
     // GETTER PERSONALIZADO: Expone facturaId en JSON
     // ========================================
     public Long getFacturaId() {
@@ -55,4 +61,7 @@ public class Pago {
     }
 
     // Getters y Setters (Lombok @Data genera automáticamente, excepto getFacturaId)
+    // Si no usas Lombok, agrega manualmente:
+    // public Paquete getPaquete() { return paquete; }
+    // public void setPaquete(Paquete paquete) { this.paquete = paquete; }
 }
