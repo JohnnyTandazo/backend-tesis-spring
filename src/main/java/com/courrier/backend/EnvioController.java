@@ -27,19 +27,16 @@ public class EnvioController extends BaseSecurityController {
      * PUT: Actualizar tracking de un envío (solo logística, operador)
      * 🔒 SEGURIDAD: Requiere JWT (Operador/Admin)
      */
-    @PutMapping("/api/operador/envios/{id}/tracking")
+    @PutMapping("/operador/{id}/tracking")
     public ResponseEntity<Envio> actualizarTrackingOperador(
             @PathVariable Long id,
             @RequestBody Map<String, Object> payload) {
         String nuevoTracking = (String) payload.get("tracking");
-        System.out.println("🚚 [PUT /api/operador/envios/" + id + "/tracking] Tracking recibido: " + nuevoTracking);
         obtenerUsuarioAutenticado();
         try {
             Envio envio = envioService.actualizarTrackingOperador(id, nuevoTracking);
-            System.out.println("✅ Tracking actualizado: " + nuevoTracking + ", Estado: " + envio.getEstado());
             return ResponseEntity.ok(envio);
         } catch (RuntimeException e) {
-            System.out.println("❌ Error al actualizar tracking: " + e.getMessage());
             return ResponseEntity.notFound().build();
         }
     }
