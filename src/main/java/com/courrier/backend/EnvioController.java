@@ -1,10 +1,4 @@
-    @GetMapping("/operador")
-    public List<Envio> listarParaOperador() {
-        return envioService.obtenerTodos();
-    }
-// ...existing code...
 package com.courrier.backend;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
