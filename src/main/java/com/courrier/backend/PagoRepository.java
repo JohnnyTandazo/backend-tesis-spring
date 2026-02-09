@@ -42,5 +42,10 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
      * Ordenado por fecha (más recientes primero)
      */
     List<Pago> findByEstado(String estado, Sort sort);
+    
+    /**
+     * Obtener pagos de una factura por usuario
+     */
+    List<Pago> findByFacturaUsuarioId(Long usuarioId, Sort sort);
 }
 
