@@ -1,3 +1,7 @@
+    @GetMapping("/operador")
+    public List<Envio> listarParaOperador() {
+        return envioService.obtenerTodos();
+    }
 // ...existing code...
 package com.courrier.backend;
 
