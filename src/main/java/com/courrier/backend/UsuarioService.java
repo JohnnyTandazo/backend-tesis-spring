@@ -1,16 +1,20 @@
 package com.courrier.backend;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class UsuarioService {
+        @Autowired
+        private PasswordEncoder passwordEncoder;
     // Cambiar contraseña de usuario
     public boolean cambiarPassword(Long id, String nuevaPassword) {
         Usuario usuario = usuarioRepository.findById(id).orElse(null);
         if (usuario != null) {
-            // Si usas BCryptPasswordEncoder, deberías encriptar aquí
-            usuario.setPassword(nuevaPassword);
+            // IMPORTANTE: Encriptamos la contraseña antes de guardarla
+            String passwordEncriptada = passwordEncoder.encode(nuevaPassword);
+            usuario.setPassword(passwordEncriptada);
             usuarioRepository.save(usuario);
             return true;
         }
