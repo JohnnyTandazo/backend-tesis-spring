@@ -1,3 +1,4 @@
+
 package com.courrier.backend;
 
 
@@ -229,6 +230,20 @@ public class UsuarioController {
             }
             return ResponseEntity.notFound().build();
         }
+            // ENDPOINT: Cambiar contraseña
+    @PatchMapping("/{id}/password")
+    public ResponseEntity<?> actualizarPassword(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        String nuevaPassword = body.get("password");
+        if (nuevaPassword == null || nuevaPassword.isEmpty()) {
+            return ResponseEntity.badRequest().body("La contraseña es obligatoria");
+        }
+        boolean exito = usuarioService.cambiarPassword(id, nuevaPassword);
+        if (exito) {
+            return ResponseEntity.ok(Map.of("mensaje", "Contraseña actualizada correctamente"));
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
 
         // ENDPOINT 2: Actualizar Contacto
         @PutMapping("/{id}")

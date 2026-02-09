@@ -5,6 +5,17 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class UsuarioService {
+    // Cambiar contraseña de usuario
+    public boolean cambiarPassword(Long id, String nuevaPassword) {
+        Usuario usuario = usuarioRepository.findById(id).orElse(null);
+        if (usuario != null) {
+            // Si usas BCryptPasswordEncoder, deberías encriptar aquí
+            usuario.setPassword(nuevaPassword);
+            usuarioRepository.save(usuario);
+            return true;
+        }
+        return false;
+    }
 
     @Autowired
     private UsuarioRepository usuarioRepository;
@@ -29,7 +40,7 @@ public class UsuarioService {
             // Solo actualizamos si el dato no es nulo
             if (nuevoTelefono != null) usuario.setTelefono(nuevoTelefono);
             // El campo 'direccion' no existe en Usuario, así que se ignora nuevaDireccion
-            return usuarioRepository.save(usuario);
+            return usuarioRepository.save(usuario);//comentario
         }
         return null;
     }
