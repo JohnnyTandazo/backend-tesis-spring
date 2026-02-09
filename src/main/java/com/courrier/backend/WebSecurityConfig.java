@@ -104,10 +104,11 @@ public class WebSecurityConfig {
         
         // 📤 MÉTODOS HTTP PERMITIDOS
         configuration.setAllowedMethods(Arrays.asList(
-            "GET", 
-            "POST", 
-            "PUT", 
-            "DELETE", 
+            "GET",
+            "POST",
+            "PUT",
+            "DELETE",
+            "PATCH",
             "OPTIONS"  // ✅ OBLIGATORIO para Preflight
         ));
         
