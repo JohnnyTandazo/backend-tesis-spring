@@ -217,4 +217,28 @@ public class UsuarioController {
         System.out.println("✅ Se encontraron " + direcciones.size() + " direcciones");
         return direcciones;
     }
+
+        // ENDPOINT 1: Ver Perfil
+        @GetMapping("/{id}")
+        public ResponseEntity<?> obtenerPerfil(@PathVariable Long id) {
+            Usuario usuario = usuarioService.obtenerPorId(id);
+            if (usuario != null) {
+                // Importante: El password ya va encriptado o null para seguridad,
+                // pero enviamos el objeto para que el front lea nombre/email/casillero.
+                return ResponseEntity.ok(usuario);
+            }
+            return ResponseEntity.notFound().build();
+        }
+
+        // ENDPOINT 2: Actualizar Contacto
+        @PutMapping("/{id}")
+        public ResponseEntity<?> actualizarDatos(@PathVariable Long id, @RequestBody Map<String, String> body) {
+            String telefono = body.get("telefono");
+            String direccion = body.get("direccion"); // Opcional si el front lo manda
+            Usuario actualizado = usuarioService.actualizarPerfil(id, telefono, direccion);
+            if (actualizado != null) {
+                return ResponseEntity.ok(actualizado);
+            }
+            return ResponseEntity.badRequest().body("No se pudo actualizar el perfil. Usuario no encontrado.");
+        }
 }
