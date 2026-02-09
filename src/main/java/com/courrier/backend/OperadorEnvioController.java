@@ -36,6 +36,30 @@ public class OperadorEnvioController extends BaseSecurityController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes permiso para esta operación");
         }
     }
+        @PutMapping("/pagos/{id}/verificar")
+        public ResponseEntity<Pago> verificarPago(@PathVariable Long id) {
+            validarOperador();
+            Pago pago = pagoService.obtenerPagoPorId(id);
+            if (pago == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Pago no encontrado");
+            }
+            pago.setEstado("VERIFICADO");
+            pagoService.guardarPago(pago);
+
+            Factura factura = pago.getFactura();
+            if (factura != null) {
+                factura.setEstado("PAGADO");
+                facturaRepo.save(factura);
+            }
+
+            Paquete paquete = pago.getPaquete();
+            if (paquete != null) {
+                paquete.setEstado("PAGO_VERIFICADO");
+                paqueteRepo.save(paquete);
+            }
+
+            return ResponseEntity.ok(pago);
+        }
 
     @GetMapping("/envios")
     public ResponseEntity<List<Envio>> listarEnviosOperador(
