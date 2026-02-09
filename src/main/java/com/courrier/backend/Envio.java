@@ -14,7 +14,7 @@ public class Envio {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "numero_tracking", nullable = false)
     private String numeroTracking; // Ej: USA-001
 
     private String descripcion; // Ej: Laptop HP
@@ -26,8 +26,10 @@ public class Envio {
     @Column(nullable = false)
     private String estado; // 'EN_MIAMI', 'EN_TRANSITO', 'ENTREGADO', etc.
 
+    @Column(name = "fecha_creacion")
     private LocalDateTime fechaCreacion = LocalDateTime.now();
 
+    @Column(name = "fecha_entrega")
     private LocalDateTime fechaEntrega;
 
     private String categoria; // A, B, C, etc.
