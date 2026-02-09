@@ -21,6 +21,11 @@ import java.util.Map;
 @RequestMapping("/api/envios")
 public class EnvioController extends BaseSecurityController {
 
+    @GetMapping("/operador/lista")
+    public ResponseEntity<List<Envio>> listarTodosParaOperador() {
+        return ResponseEntity.ok(envioService.obtenerTodos());
+    }
+
     /**
      * PUT: Actualizar tracking de un envío (solo logística, operador)
      * 🔒 SEGURIDAD: Requiere JWT (Operador/Admin)
