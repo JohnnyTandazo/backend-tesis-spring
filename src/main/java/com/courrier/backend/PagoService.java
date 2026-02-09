@@ -40,8 +40,16 @@ public class PagoService {
      * Usa query directa con JOIN
      */
     public List<Pago> obtenerPorUsuario(Long usuarioId) {
-        System.out.println("💳 [PagoService] Obteniendo pagos del usuario: " + usuarioId);
-        return pagoRepository.findByUsuarioId(usuarioId);
+        // ...existing code...
+        // Implementar lógica aquí
+        return null; // TODO: Implementar
+    }
+
+    /**
+     * Obtener un pago por ID (versión simple)
+     */
+    public Pago obtenerPagoPorId(Long id) {
+        return pagoRepository.findById(id).orElse(null);
     }
 
     /**
@@ -196,10 +204,10 @@ public class PagoService {
             Pago actualizado = pagoRepository.save(pago);
             System.out.println("   ✓ Estado actualizado a: " + actualizado.getEstado());
             
-            // CRÍTICO: Si el estado es APROBADO, actualizar factura a PAGADA
+            // CRÍTICO: Si el estado es VERIFICADO, actualizar factura a PAGADA
             System.out.println("\n📍 PASO 3: Verificar si necesita sincronización con Factura y Envío");
-            if ("APROBADO".equals(nuevoEstado)) {
-                System.out.println("   🎯 APROBADO detectado - Actualizando factura y envío...");
+            if ("VERIFICADO".equals(nuevoEstado)) {
+                System.out.println("   🎯 VERIFICADO detectado - Actualizando factura y envío...");
                 
                 Factura factura = pago.getFactura();
                 if (factura != null) {
