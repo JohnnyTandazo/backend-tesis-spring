@@ -256,4 +256,15 @@ public class UsuarioController {
             }
             return ResponseEntity.badRequest().body("No se pudo actualizar el perfil. Usuario no encontrado.");
         }
+
+        // ENDPOINT: Eliminar usuario
+        @DeleteMapping("/{id}")
+        public ResponseEntity<?> eliminarUsuario(@PathVariable Long id) {
+            boolean eliminado = usuarioService.eliminarUsuario(id);
+            if (eliminado) {
+                return ResponseEntity.ok(Map.of("mensaje", "Usuario eliminado correctamente"));
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        }
 }

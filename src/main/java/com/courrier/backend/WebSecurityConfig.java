@@ -77,6 +77,9 @@ public class WebSecurityConfig {
 
                 // 🟢 ENDPOINTS CLIENTE/ADMIN
                 .requestMatchers("/api/direcciones/**").hasAnyAuthority("ROLE_CLIENTE", "ROLE_ADMIN", "CLIENTE", "ADMIN")
+
+                // 🟢 ENDPOINTS USUARIOS (solo autenticados, GET y DELETE)
+                .requestMatchers("/api/usuarios/**").authenticated()
                 
                 // 🔴 TODO LO DEMÁS REQUIERE JWT VÁLIDO
                 .anyRequest().authenticated()

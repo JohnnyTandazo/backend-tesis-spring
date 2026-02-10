@@ -48,4 +48,13 @@ public class UsuarioService {
         }
         return null;
     }
+
+    // Eliminar usuario por ID
+    public boolean eliminarUsuario(Long id) {
+        if (usuarioRepository.existsById(id)) {
+            usuarioRepository.deleteById(id);
+            return true;
+        }
+        return false;
+    }
 }
